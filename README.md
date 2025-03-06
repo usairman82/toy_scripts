@@ -8,8 +8,10 @@ These scripts are either experiments, or little tools I've thrown together for
 my own purposes.  Each will have a basic description of what it is for.
 
 
-page_meta_data.py:
-
+Script    : page_meta_data
+Langauge  : Python
+Automation: None yet.
+-------------------------------------------------------------------------------
 A really simply API which tracks page visits in a dynamoDB in AWS.
 I used this for very basic traffic metrics to a site I built.  It
 has no concept of unique visits,etc.  But all that could be added
