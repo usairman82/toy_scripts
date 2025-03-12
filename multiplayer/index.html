@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tank Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #8B8970; /* Sandbox color */
+        }
+        #minimap {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background-color: #555555;
+        }
+        #healthDisplay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+        }
+        #scoreDisplay {
+            position: absolute;
+            top: 40px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+        }
+        #weaponDisplay {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+        }
+        #weaponIcon {
+            width: 32px;
+            height: 32px;
+            margin-left: 10px;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        #instructions {
+            position: absolute;
+            top: 210px;
+            right: 10px;
+            color: white;
+            font-size: 16px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 250px;
+        }
+        #instructions h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        #gameOver, #youWin {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+        }
+        #gameOver h1, #youWin h1 {
+            color: red;
+            font-size: 40px;
+            margin-bottom: 20px;
+        }
+        #youWin h1 {
+            color: green;
+        }
+        #gameOver button, #youWin button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        /* Multiplayer UI styles */
+        #multiplayerUI {
+            position: absolute;
+            top: 10px;
+            left: 250px;
+            color: white;
+            font-size: 16px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #multiplayerUI button {
+            margin-left: 10px;
+            padding: 5px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="minimap"></canvas>
+    <div id="healthDisplay">Health: 1000</div>
+    <div id="scoreDisplay">Tanks Destroyed: 0</div>
+    <div id="weaponDisplay">
+        Weapon: <span id="weaponName">Cannon</span>
+        <div id="weaponIcon"></div>
+    </div>
+    <div id="instructions">
+        <h3>Game Controls</h3>
+        <p>
+            <strong>Movement:</strong><br>
+            ↑ - Move forward<br>
+            ↓ - Move backward<br>
+            ← - Rotate left<br>
+            → - Rotate right
+        </p>
+        <p>
+            <strong>Combat:</strong><br>
+            SPACE - Fire weapon<br>
+            W - Switch weapons
+        </p>
+        <p>
+            <strong>Objective:</strong><br>
+            Destroy all enemy tanks to win!
+        </p>
+    </div>
+    <div id="gameOver">
+        <h1>Game Over</h1>
+        <button onclick="trackEvent('restart_button'); location.reload();">Restart</button>
+    </div>
+    <div id="youWin">
+        <h1>You Win!</h1>
+        <button onclick="trackEvent('restart_button'); location.reload();">Restart</button>
+    </div>
+
+    <!-- Core Game Scripts -->
+    <script src="game.js"></script>
+    <script src="player.js"></script>
+    <script src="projectile.js"></script>
+    
+    <!-- Multiplayer Script -->
+    <script src="multiplayer.js"></script>
+    
+    <!-- Main Initialization -->
+    <script>
+        // Track page load
+        document.addEventListener("DOMContentLoaded", function() {
+            trackEvent("game_loaded");
+        });
+        
+        // Clean up on window close or navigation away
+        window.addEventListener('beforeunload', () => {
+            if (multiplayerManager) {
+                multiplayerManager.disconnect();
+            }
+        });
+        
+        // Start the game by preloading images
+        preloadImages();
+    </script>
+</body>
+</html>
