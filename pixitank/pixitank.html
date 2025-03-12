@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tank Simulator</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #7CAF50; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
+    <script>
+        // Game Configuration
+        const config = {
+            width: 800,
+            height: 600,
+            worldWidth: 2000,
+            worldHeight: 2000
+        };
+
+        // Global Variables
+        let app, player, enemies = [], obstacles = [], projectiles = [], explosions = [];
+        let projectileIdCounter = 0, projectileData = {};
+        const playerHealth = 1000, weaponTypes = ['Cannon', 'MachineGun', 'Rocket'];
+        let currentWeaponIndex = 0, gameOver = false;
+        const weaponStats = {
+            Cannon: { speed: 400, damage: 20, image: 'shell' },
+            MachineGun: { speed: 600, damage: 10, image: 'bullet' },
+            Rocket: { speed: 300, damage: 50, image: 'rocket' }
+        };
+        let keys = {}, healthText, gameOverText, restartButton, minimap, overlay;
+
+        // Utility Functions
+        function degToRad(deg) { return deg * Math.PI / 180; }
+        function radToDeg(rad) { return rad * 180 / Math.PI; }
+        function distance(x1, y1, x2, y2) {
+            return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        }
+
+        // Collision Detection
+        function checkCollision(obj1, obj2) {
+            const dx = obj1.x - obj2.x, dy = obj1.y - obj2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            return dist < 64; // 64x64 collision radius
+        }
+
+        // Check if position overlaps with obstacles
+        function isPositionValid(x, y) {
+            for (const obstacle of obstacles) {
+                if (distance(x, y, obstacle.x, obstacle.y) < 64) return false;
+            }
+            return x >= 32 && x <= 1968 && y >= 32 && y <= 1968; // Within bounds
+        }
+
+        // Initialization
+        async function init() {
+            app = new PIXI.Application({
+                width: config.width,
+                height: config.height,
+                backgroundColor: 0x7CAF50,
+                resolution: window.devicePixelRatio || 1,
+                autoDensity: true
+            });
+            document.body.appendChild(app.view);
+
+            // Load Assets
+            await PIXI.Assets.load([
+                'assets/tank.png', 'assets/enemy.png', 'assets/shell.png',
+                'assets/bullet.png', 'assets/rocket.png', 'assets/wall.png',
+                'assets/rock.png', 'assets/explosion.png', 'assets/rubble.png'
+            ]);
+
+            // Game World Container
+            const worldContainer = new PIXI.Container();
+            app.stage.addChild(worldContainer);
+
+            // Player Tank (Ensure no obstacle overlap)
+            player = new PIXI.Sprite(PIXI.Texture.from('assets/tank.png'));
+            player.anchor.set(0.5);
+            do {
+                player.x = Math.random() * (2000 - 64) + 32;
+                player.y = Math.random() * (2000 - 64) + 32;
+            } while (!isPositionValid(player.x, player.y));
+            player.rotation = 0; // Barrel faces up (north)
+            player.width = player.height = 64;
+            player.health = playerHealth;
+            player.invincible = false;
+            worldContainer.addChild(player);
+
+            // Enemies
+            for (let i = 0; i < 5; i++) {
+                let x, y, dist;
+                do {
+                    x = Math.random() * (2000 - 64) + 32;
+                    y = Math.random() * (2000 - 64) + 32;
+                    dist = distance(x, y, player.x, player.y);
+                } while (dist < 500 || !isPositionValid(x, y));
+                const enemy = new PIXI.Sprite(PIXI.Texture.from('assets/enemy.png'));
+                enemy.anchor.set(0.5);
+                enemy.x = x;
+                enemy.y = y;
+                enemy.rotation = 0; // Barrel faces up initially
+                enemy.width = enemy.height = 64;
+                enemy.health = 50;
+                enemy.lastFired = 0;
+                enemy.target = { x: Math.random() * 2000, y: Math.random() * 2000 };
+                worldContainer.addChild(enemy);
+                enemies.push(enemy);
+            }
+
+            // Obstacles (Walls)
+            for (let i = 0; i < 50; i++) {
+                const wall = new PIXI.Sprite(PIXI.Texture.from('assets/wall.png'));
+                wall.anchor.set(0.5);
+                wall.x = Math.random() * (2000 - 64) + 32;
+                wall.y = Math.random() * (2000 - 64) + 32;
+                wall.width = wall.height = 64;
+                worldContainer.addChild(wall);
+                obstacles.push(wall);
+            }
+
+            // Rock Borders
+            for (let x = 0; x <= 2000; x += 64) {
+                const top = new PIXI.Sprite(PIXI.Texture.from('assets/rock.png'));
+                const bottom = new PIXI.Sprite(PIXI.Texture.from('assets/rock.png'));
+                top.anchor.set(0.5);
+                bottom.anchor.set(0.5);
+                top.x = bottom.x = x;
+                top.y = 0;
+                bottom.y = 2000;
+                top.width = top.height = bottom.width = bottom.height = 64;
+                worldContainer.addChild(top, bottom);
+                obstacles.push(top, bottom);
+            }
+            for (let y = 0; y <= 2000; y += 64) {
+                const left = new PIXI.Sprite(PIXI.Texture.from('assets/rock.png'));
+                const right = new PIXI.Sprite(PIXI.Texture.from('assets/rock.png'));
+                left.anchor.set(0.5);
+                right.anchor.set(0.5);
+                left.x = 0;
+                right.x = 2000;
+                left.y = right.y = y;
+                left.width = left.height = right.width = right.height = 64;
+                worldContainer.addChild(left, right);
+                obstacles.push(left, right);
+            }
+
+            // Overlay Container (Fixed to Screen)
+            overlay = new PIXI.Container();
+            overlay.zIndex = 100; // High z-index for visibility
+            app.stage.addChild(overlay);
+            app.stage.sortableChildren = true;
+
+            // Health Text
+            healthText = new PIXI.Text(`Health: ${player.health}`, { fontSize: 20, fill: 0xffffff });
+            healthText.x = 10;
+            healthText.y = 10;
+            overlay.addChild(healthText);
+
+            // Minimap
+            minimap = new PIXI.Container();
+            minimap.x = 650;
+            minimap.y = 50;
+            const bg = new PIXI.Graphics();
+            bg.beginFill(0x555555);
+            bg.drawRect(0, 0, 150, 150);
+            bg.endFill();
+            minimap.addChild(bg);
+            const scale = 150 / 2000; // Scale world to minimap
+            const playerDot = new PIXI.Graphics();
+            playerDot.beginFill(0x00FF00); // Green for player
+            playerDot.drawCircle(0, 0, 3);
+            playerDot.endFill();
+            minimap.addChild(playerDot);
+            const enemyDots = enemies.map(() => {
+                const dot = new PIXI.Graphics();
+                dot.beginFill(0xFF0000); // Red for enemies
+                dot.drawCircle(0, 0, 3);
+                dot.endFill();
+                minimap.addChild(dot);
+                return dot;
+            });
+            overlay.addChild(minimap);
+
+            // Camera Setup
+            worldContainer.position.set(config.width / 2, config.height / 2);
+            worldContainer.pivot.set(player.x, player.y);
+
+            // Input Handling
+            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+            // Game Loop
+            app.ticker.add(update);
+            console.log('[Init] Game started');
+        }
+
+        // Update Loop
+        function update(delta) {
+            if (gameOver) return;
+            if (!player || player.health <= 0) {
+                console.error(`[${Date.now()}] Player is inactive or dead`);
+                return;
+            }
+
+            // Player Movement
+            const speed = 200 * delta / 60;
+            const rotSpeed = degToRad(150) * delta / 60;
+            if (keys['ArrowLeft']) player.rotation -= rotSpeed;
+            if (keys['ArrowRight']) player.rotation += rotSpeed;
+            if (keys['ArrowUp']) {
+                const newX = player.x + Math.cos(player.rotation - Math.PI / 2) * speed;
+                const newY = player.y + Math.sin(player.rotation - Math.PI / 2) * speed;
+                if (!checkCollisions(newX, newY, player)) {
+                    player.x = newX;
+                    player.y = newY;
+                }
+            }
+            if (keys['ArrowDown']) {
+                const newX = player.x - Math.cos(player.rotation - Math.PI / 2) * speed;
+                const newY = player.y - Math.sin(player.rotation - Math.PI / 2) * speed;
+                if (!checkCollisions(newX, newY, player)) {
+                    player.x = newX;
+                    player.y = newY;
+                }
+            }
+
+            // Weapon Switching and Firing
+            if (keys['KeyW'] && !keys['KeyWPressed']) {
+                currentWeaponIndex = (currentWeaponIndex + 1) % weaponTypes.length;
+                console.log(`[${Date.now()}] Weapon switched to: ${weaponTypes[currentWeaponIndex]}`);
+                keys['KeyWPressed'] = true;
+            }
+            if (!keys['KeyW']) keys['KeyWPressed'] = false;
+            if (keys['Space'] && !keys['SpacePressed']) {
+                fireProjectile(player, weaponStats[weaponTypes[currentWeaponIndex]]);
+                keys['SpacePressed'] = true;
+            }
+            if (!keys['Space']) keys['SpacePressed'] = false;
+
+            // Enemy AI
+            enemies.forEach(enemy => {
+                if (enemy.health <= 0) return;
+                const dist = distance(enemy.x, enemy.y, player.x, player.y);
+                if (dist < 400) {
+                    const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + Math.PI / 2;
+                    enemy.rotation = angle; // Barrel points at player
+                    if (Date.now() - enemy.lastFired > 2000) {
+                        fireProjectile(enemy, weaponStats['Cannon']);
+                        enemy.lastFired = Date.now();
+                        console.log(`[${Date.now()}] Enemy fired at (${player.x}, ${player.y})`);
+                    }
+                } else {
+                    const angle = Math.atan2(enemy.target.y - enemy.y, enemy.target.x - enemy.x) + Math.PI / 2;
+                    enemy.rotation = angle;
+                    const speed = 100 * delta / 60;
+                    const newX = enemy.x + Math.cos(angle - Math.PI / 2) * speed;
+                    const newY = enemy.y + Math.sin(angle - Math.PI / 2) * speed;
+                    if (!checkCollisions(newX, newY, enemy)) {
+                        enemy.x = newX;
+                        enemy.y = newY;
+                    }
+                    if (distance(enemy.x, enemy.y, enemy.target.x, enemy.target.y) < 10) {
+                        enemy.target = { x: Math.random() * 2000, y: Math.random() * 2000 };
+                    }
+                }
+            });
+
+            // Projectile Update
+            projectiles.forEach((proj, i) => {
+                const data = projectileData[proj.customId];
+                if (!data || data.hasHit) return;
+                const speed = data.speed * delta / 60;
+                proj.x += Math.cos(proj.rotation - Math.PI / 2) * speed;
+                proj.y += Math.sin(proj.rotation - Math.PI / 2) * speed;
+
+                // Check collisions
+                if (checkCollision(proj, player)) applyDamage(proj, player, true);
+                enemies.forEach(enemy => {
+                    if (enemy.health > 0 && checkCollision(proj, enemy)) applyDamage(proj, enemy, false);
+                });
+                obstacles.forEach(obstacle => {
+                    if (checkCollision(proj, obstacle)) {
+                        createExplosion(proj.x, proj.y);
+                        removeProjectile(proj);
+                    }
+                });
+
+                // Lifetime check
+                if (Date.now() - data.created > 3000) removeProjectile(proj);
+            });
+
+            // Explosion Update
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                if (Date.now() - exp.created > 500) {
+                    app.stage.children[0].removeChild(exp);
+                    explosions.splice(i, 1);
+                }
+            }
+
+            // Camera Update (Only affects world container)
+            app.stage.children[0].pivot.set(player.x, player.y);
+
+            // Minimap Update
+            const scale = 150 / 2000;
+            minimap.children[1].x = player.x * scale; // Player dot
+            minimap.children[1].y = player.y * scale;
+            enemies.forEach((enemy, i) => {
+                if (enemy.health > 0) {
+                    minimap.children[i + 2].x = enemy.x * scale;
+                    minimap.children[i + 2].y = enemy.y * scale;
+                    minimap.children[i + 2].visible = true;
+                } else {
+                    minimap.children[i + 2].visible = false;
+                }
+            });
+
+            // Health Update
+            healthText.text = `Health: ${player.health}`;
+
+            // Win Condition
+            if (enemies.every(enemy => enemy.health <= 0) && !gameOver) {
+                showWinScreen();
+            }
+        }
+
+        // Projectile Creation
+        function fireProjectile(tank, weapon) {
+            const offset = 40;
+            const proj = new PIXI.Sprite(PIXI.Texture.from(`assets/${weapon.image}.png`));
+            proj.anchor.set(0.5);
+            proj.x = tank.x + Math.cos(tank.rotation - Math.PI / 2) * offset;
+            proj.y = tank.y + Math.sin(tank.rotation - Math.PI / 2) * offset;
+            proj.rotation = tank.rotation; // Match tank's rotation
+            proj.width = proj.height = 64;
+            proj.customId = projectileIdCounter++;
+            projectileData[proj.customId] = {
+                owner: tank,
+                damage: weapon.damage,
+                speed: weapon.speed,
+                hasHit: false,
+                created: Date.now()
+            };
+            app.stage.children[0].addChild(proj); // Add to world container
+            projectiles.push(proj);
+            console.log(`[${Date.now()}] Projectile fired: ID=${proj.customId}, Owner=${tank === player ? 'Player' : 'Enemy'}`);
+        }
+
+        // Damage Application
+        function applyDamage(projectile, target, isPlayer) {
+            const data = projectileData[projectile.customId];
+            if (!data || data.hasHit) return;
+            if ((isPlayer && data.owner === player) || (!isPlayer && data.owner !== player)) return;
+
+            if (target.health === undefined || isNaN(target.health)) {
+                console.error(`[${Date.now()}] Target health invalid, resetting: ${isPlayer ? 'Player' : 'Enemy'} health was ${target.health}`);
+                target.health = isPlayer ? playerHealth : 50;
+            }
+            if (isPlayer && target.invincible) return;
+
+            console.log(`[${Date.now()}] Applying damage: Target=${isPlayer ? 'Player' : 'Enemy'}, HealthBefore=${target.health}, Damage=${data.damage}`);
+            target.health -= data.damage;
+            console.log(`[${Date.now()}] Health after hit: ${target.health}`);
+
+            data.hasHit = true;
+            createExplosion(projectile.x, projectile.y);
+            removeProjectile(projectile);
+
+            if (isPlayer) {
+                target.invincible = true;
+                setTimeout(() => target.invincible = false, 500);
+                if (target.health <= 0) {
+                    console.log(`[${Date.now()}] Player destroyed`);
+                    createRubble(target.x, target.y);
+                    showGameOver();
+                }
+            } else if (target.health <= 0) {
+                console.log(`[${Date.now()}] Enemy destroyed`);
+                createRubble(target.x, target.y);
+                target.visible = false;
+            }
+        }
+
+        // Effects
+        function createExplosion(x, y) {
+            const exp = new PIXI.Sprite(PIXI.Texture.from('assets/explosion.png'));
+            exp.anchor.set(0.5);
+            exp.x = x;
+            exp.y = y;
+            exp.scale.set(1.5);
+            exp.created = Date.now();
+            app.stage.children[0].addChild(exp); // Add to world container
+            explosions.push(exp);
+            console.log(`[${Date.now()}] Explosion at (${x}, ${y})`);
+        }
+
+        function createRubble(x, y) {
+            const rubble = new PIXI.Sprite(PIXI.Texture.from('assets/rubble.png'));
+            rubble.anchor.set(0.5);
+            rubble.x = x;
+            rubble.y = y;
+            app.stage.children[0].addChild(rubble); // Add to world container
+            console.log(`[${Date.now()}] Rubble at (${x}, ${y})`);
+        }
+
+        function showGameOver() {
+            gameOver = true;
+            gameOverText = new PIXI.Text('Game Over', { fontSize: 40, fill: 0xff0000 });
+            gameOverText.anchor.set(0.5);
+            gameOverText.x = config.width / 2;
+            gameOverText.y = config.height / 2;
+            gameOverText.zIndex = 110; // Above all else
+            overlay.addChild(gameOverText);
+
+            restartButton = new PIXI.Text('Restart', { fontSize: 20, fill: 0xffffff });
+            restartButton.anchor.set(0.5);
+            restartButton.x = config.width / 2;
+            restartButton.y = config.height / 2 + 50;
+            restartButton.zIndex = 110;
+            restartButton.interactive = true;
+            restartButton.buttonMode = true;
+            restartButton.on('pointerdown', () => {
+                console.log(`[${Date.now()}] Game restarted via page reload`);
+                location.reload(); // Reload the page
+            });
+            overlay.addChild(restartButton);
+            console.log(`[${Date.now()}] Game Over displayed`);
+        }
+
+        function showWinScreen() {
+            gameOver = true;
+            gameOverText = new PIXI.Text('You Win!', { fontSize: 40, fill: 0x00ff00 });
+            gameOverText.anchor.set(0.5);
+            gameOverText.x = config.width / 2;
+            gameOverText.y = config.height / 2;
+            gameOverText.zIndex = 110; // Above all else
+            overlay.addChild(gameOverText);
+
+            restartButton = new PIXI.Text('Restart', { fontSize: 20, fill: 0xffffff });
+            restartButton.anchor.set(0.5);
+            restartButton.x = config.width / 2;
+            restartButton.y = config.height / 2 + 50;
+            restartButton.zIndex = 110;
+            restartButton.interactive = true;
+            restartButton.buttonMode = true;
+            restartButton.on('pointerdown', () => {
+                console.log(`[${Date.now()}] Game restarted via page reload`);
+                location.reload(); // Reload the page
+            });
+            overlay.addChild(restartButton);
+            console.log(`[${Date.now()}] You Win! displayed`);
+        }
+
+        // Projectile Cleanup
+        function removeProjectile(proj) {
+            delete projectileData[proj.customId];
+            app.stage.children[0].removeChild(proj);
+            const index = projectiles.indexOf(proj);
+            if (index > -1) projectiles.splice(index, 1);
+        }
+
+        // Collision Check
+        function checkCollisions(x, y, obj) {
+            for (const obstacle of obstacles) {
+                if (distance(x, y, obstacle.x, obstacle.y) < 64) return true;
+            }
+            if (x < 32 || x > 1968 || y < 32 || y > 1968) return true;
+            return false;
+        }
+
+        // Start Game
+        init();
+    </script>
+</body>
+</html>

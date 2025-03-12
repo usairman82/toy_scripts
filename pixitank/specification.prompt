@@ -1,0 +1,192 @@
+You are tasked with creating a 2D tank simulator game using a 2D game development framework or engine of your choice. The game involves a player-controlled tank navigating a bounded world, engaging in combat with enemy tanks using projectiles, and interacting with obstacles. Below are the detailed requirements, rules, asset paths, and specifications for the game. Select a suitable framework/engine and implement the game according to these guidelines, ensuring all functionality is achieved regardless of the chosen technology.
+
+General Requirements
+Game Type: 2D top-down tank simulator with real-time gameplay.
+Game Window: Set the visible area to 800x600 pixels (viewport or canvas size).
+Physics: Include a basic physics system for movement and collision detection (e.g., bounding box or simple physics engine).
+World Size: The game world is a 2000x2000 pixel bounded area.
+Date: Assume the current date is March 11, 2025, for any timestamp-related logic.
+Asset Paths and Names
+All assets are located in the following directory structure relative to the game script:
+
+Images:
+Player tank: assets/tank.png
+Enemy tank: assets/enemy.png
+Cannon projectile: assets/shell.png
+Machine gun projectile: assets/bullet.png
+Rocket projectile: assets/rocket.png
+Wall obstacle: assets/wall.png
+Rock border: assets/rock.png
+Explosion effect: assets/explosion.png
+Rubble (destroyed tank): assets/rubble.png
+Audio:
+Tank engine sound: assets/sounds/tank_engine.mp3
+Shooting sound: assets/sounds/shoot.mp3
+Explosion sound: assets/sounds/explosion.mp3
+Player death sound: assets/sounds/player_death.mp3
+Notes: Ensure the chosen framework supports loading and rendering these image and audio formats (.png and .mp3).
+Game Objects and Properties
+Player Tank:
+Sprite: tank.png
+Initial Position: (1000, 1000) in world coordinates
+Health: 1000
+Size: 64x64 pixels (collision and display)
+Initial Rotation: Facing up (0 degrees or equivalent in chosen system)
+Movement Speed: 200 pixels/second (forward/backward)
+Rotation Speed: 150 degrees/second
+Collision: Collides with world bounds and obstacles
+Invincibility: 500ms after taking damage
+Enemy Tanks:
+Sprite: enemy.png
+Quantity: 5
+Initial Positions: Random within 2000x2000, at least 500 pixels away from the player
+Health: 50
+Size: 64x64 pixels
+Initial Rotation: Facing up (0 degrees or equivalent)
+Movement Speed: 100 pixels/second (when patrolling)
+Behavior:
+If within 400 pixels of the player, aim and fire every 2000ms (using the cannon weapon).
+Otherwise, patrol to a random target within the world bounds, updating target when within 10 pixels of it.
+Collision: Collides with world bounds and obstacles
+Projectiles:
+Types:
+Cannon: shell.png, speed 400 pixels/second, damage 20
+Machine Gun: bullet.png, speed 600 pixels/second, damage 10
+Rocket: rocket.png, speed 300 pixels/second, damage 50
+Size: 64x64 pixels
+Lifetime: Destroy after 3000ms if not hitting anything
+Collision: Interacts with player, enemies, and obstacles
+Ownership: Tracks whether fired by player or enemy
+Obstacles:
+Walls:
+Sprite: wall.png
+Quantity: 50
+Position: Random within 2000x2000
+Size: 64x64 pixels
+Static: Non-moving objects with collision
+Rock Borders:
+Sprite: rock.png
+Placement: Line the edges of the 2000x2000 world (top, bottom, left, right) with 64x64 pixel segments
+Size: 64x64 pixels
+Static: Non-moving objects with collision
+Effects:
+Explosion:
+Sprite: explosion.png
+Scale: 1.5x
+Duration: 500ms
+Layer: Above other objects (e.g., higher z-index or depth)
+Rubble:
+Sprite: rubble.png
+Layer: Below tanks but above background
+Static: Visual only, no collision
+Game Mechanics
+Player Controls:
+Movement:
+Up Arrow: Move forward at 200 pixels/second
+Down Arrow: Move backward at 200 pixels/second
+Left Arrow: Rotate counterclockwise at 150 degrees/second
+Right Arrow: Rotate clockwise at 150 degrees/second
+Weapons:
+Spacebar: Fire current weapon (single press, no rapid fire)
+W Key: Cycle through weapons (Cannon → Machine Gun → Rocket → Cannon)
+Health Display: Text at (10, 10) in the top-left corner of the viewport, format: Health: <value>, fixed to screen (does not scroll with world).
+Camera:
+Main Camera:
+Viewport: 800x600 pixels
+Bounds: 0, 0, 2000, 2000
+Zoom: 1 (no scaling)
+Follows: Player tank, keeping it centered unless near world edges
+Background Color: Green (e.g., RGB: 124, 175, 80)
+Minimap:
+Position: (650, 50) in viewport coordinates
+Size: 150x150 pixels
+Zoom: Scaled to show the entire 2000x2000 world
+Bounds: 0, 0, 2000, 2000
+Follows: Player tank with smooth interpolation (e.g., 10% per frame)
+Background Color: Gray (e.g., RGB: 85, 85, 85)
+Combat:
+Player Projectiles:
+Can hit enemies, dealing damage based on weapon type
+Destroyed on impact with enemies or obstacles
+Create an explosion on impact
+Enemy Projectiles:
+Can hit the player, dealing damage based on weapon type (default to cannon)
+Destroyed on impact with player or obstacles
+Create an explosion on impact
+Damage Handling:
+Player takes damage only from enemy projectiles
+Enemies take damage only from player projectiles
+Health reduction triggers invincibility for player (500ms)
+Destruction:
+Enemies: When health ≤ 0, remove from active gameplay, create explosion, and spawn rubble at position.
+Player: When health ≤ 0, remove from active gameplay, create explosion, spawn rubble, and trigger game over.
+Game Over:
+Display text: Game Over at (400, 300) in viewport coordinates, font size 40px, red (e.g., RGB: 255, 0, 0), centered, fixed to screen
+Display restart button: Restart at (400, 350) in viewport coordinates, font size 20px, white text (e.g., RGB: 255, 255, 255) on black background (e.g., RGB: 0, 0, 0), padding (10px horizontal, 5px vertical), interactive, fixed to screen
+Restart button resets the game to initial state when clicked
+Rules and Constraints
+Collision:
+Player and enemies collide with obstacles and world bounds
+Projectiles collide with player, enemies, and obstacles
+No self-damage (player projectiles don’t harm player, enemy projectiles don’t harm enemies)
+Projectile Management:
+Use a collection or group for projectiles with a unique identifier (e.g., ID)
+Store projectile metadata (ID, owner, damage, hit status) in a separate data structure
+Ensure projectiles are removed safely without affecting unintended objects
+Error Handling:
+Log errors if player or enemies become inactive unexpectedly
+Reset player health to 1000 if it becomes invalid (e.g., undefined or NaN)
+Use default damage (10) if projectile data is missing
+Logging:
+Log player health initialization and setup
+Log projectile creation, firing, and collision details (position, ID, owner, damage, health changes)
+Log explosions and rubble creation
+Log game over and restart events
+Implementation Guidelines
+Framework/Engine Choice:
+Select a 2D game development framework or engine that supports:
+Sprite rendering and animation
+Basic physics or collision detection
+Audio playback
+Input handling (keyboard)
+Scene or state management
+Examples: Phaser, PixiJS with custom physics, Godot (2D), Unity (2D), etc.
+Global Variables:
+Player tank object
+Collection of enemy tank objects
+Collection of obstacle objects
+Collection of active projectiles
+Collection of explosion effects
+Projectile ID counter and metadata storage
+Health display object
+Game over flag
+Core Functions:
+Load assets (images and audio)
+Initialize game world and objects
+Update game state (player input, enemy AI, projectile movement)
+Fire projectiles from tanks
+Apply damage on collisions
+Create explosion effects
+Create rubble effects
+Display and handle game over state
+Coordinate System:
+Use a top-left (0, 0) origin with positive x (right) and y (down), unless the chosen framework dictates otherwise (e.g., Godot uses y-up).
+Expected Behavior
+Player tank spawns at (1000, 1000) with 1000 health, movable via arrow keys.
+Five enemy tanks spawn randomly, patrolling or attacking within 400 pixels of the player.
+Player can fire projectiles (cannon default) with Spacebar, switching weapons with W.
+Projectiles hit targets, reduce health, and create explosions.
+Player health decreases only from enemy hits, becoming invincible for 500ms after each hit.
+Enemies are destroyed (explosion + rubble) when health ≤ 0.
+Player is destroyed (explosion + rubble) and game over triggers when health ≤ 0.
+Restart button resets the game fully.
+Code Skeleton
+Provide a complete game script in your chosen language/framework,
+Additional Notes
+Adapt the coordinate system, rendering, and physics to the chosen framework’s conventions.
+Use console logging or equivalent for debugging as specified.
+Avoid hardcoding values outside the specified constants (e.g., speeds, sizes).
+Test the game to ensure the player remains active after hits unless health reaches 0.
+Now, select a framework/engine and generate a complete game script adhering to these specifications, explaining your choice briefly at the start of the response.
+
+This generic version maintains the same level of detail while giving the LLM freedom to choose the technology. It focuses on the game’s design and functionality, leaving implementation details like physics engines, rendering methods, and event systems up to the LLM’s discretion. Let me know if you’d like further refinements!
