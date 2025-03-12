@@ -132,14 +132,26 @@
     </div>
     <div id="gameOver">
         <h1>Game Over</h1>
-        <button onclick="location.reload()">Restart</button>
+        <button onclick="trackEvent('restart_button'); location.reload();">Restart</button>
     </div>
     <div id="youWin">
         <h1>You Win!</h1>
-        <button onclick="location.reload()">Restart</button>
+        <button onclick="trackEvent('restart_button'); location.reload();">Restart</button>
     </div>
 
     <script>
+        // Tracking API configuration
+        const lambdaUrl = "https://6jlbcsv4gwkdzefzgvhtzzfzpy0yplsl.lambda-url.us-west-2.on.aws/";
+        const siteId = "tank_simulator";
+        
+        // Function to send tracking request
+        function trackEvent(eventName) {
+            fetch(`${lambdaUrl}?site_id=${siteId}&page_name=${eventName}`, { method: 'GET' })
+                .then(response => response.json())
+                .then(data => console.log("Tracking success:", data))
+                .catch(error => console.error("Tracking error:", error));
+        }
+        
         // Game constants
         const WORLD_WIDTH = 2000;
         const WORLD_HEIGHT = 2000;
@@ -1162,6 +1174,11 @@
 
         // Start the game by preloading images
         preloadImages();
+        
+        // Track page load
+        document.addEventListener("DOMContentLoaded", function() {
+            trackEvent("game_loaded");
+        });
     </script>
 </body>
 </html>

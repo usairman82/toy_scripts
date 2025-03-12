@@ -1,99 +1,150 @@
+# Detailed Prompt and Requirements for Tank Simulator Game
+
+## Objective
 Develop a fully functional 2D tank simulator game that delivers a smooth, responsive, and engaging experience without runtime errors or performance hiccups. The game must be deployable as a static website hosted on an AWS S3 bucket, relying solely on client-side code and assets (no server-side dependencies). It should feature a player-controlled tank, AI-driven enemy tanks, environmental obstacles, projectiles, a minimap, and clear win/lose conditions, all optimized for consistent performance and visual clarity.
 
-General Requirements
-Deployment: Deliver a single HTML file (index.html) with embedded or externally referenced JavaScript and CSS, suitable for static hosting on an AWS S3 bucket (e.g., http://tank-simulator.s3-website-us-west-2.amazonaws.com). All assets must reside in an assets folder within the bucket root.
-Assets: Utilize the following image files: tank.png, enemy.png, shell.png, bullet.png, rocket.png, wall.png, crate.png, tree.png, rock.png, explosion.png, rubble.png. Each is 64x64 pixels, with tank sprites (tank.png, enemy.png) oriented barrels-up (north, toward the top of the user’s monitor) at 0-degree rotation unless rotated during gameplay. Include an empty sounds subfolder for future use, but no audio is required in this version.
-World: A 2000x2000 pixel game world, viewed through an 800x600 pixel viewport centered on the player tank. The viewport scrolls smoothly as the player moves, respecting world bounds (0,0 to 2000,2000).
-Performance: Target a consistent 60 FPS with no noticeable lag, even with 5 enemy tanks, 62+ obstacles, and multiple projectiles active. Avoid stack traces, runtime errors, or uncaught exceptions, particularly during collisions or player hits.
-Orientation: All tank sprites (player and enemy) initialize with barrels pointing up (north) at 0-degree rotation. Movement and rotation must align with this orientation, where “forward” is along the barrel’s direction post-rotation.
-Game Objects and Behaviors
-Player Tank:
-Appearance: Rendered with tank.png, 64x64 pixels, centered on its physics body.
-Starting Position: Randomly placed within the 2000x2000 world, ensuring a 32-pixel buffer from obstacle edges (96px total distance from obstacle centers).
-Movement:
-Speed: 200 pixels/second.
-Controls:
-ArrowUp: Move forward along the barrel’s current direction (north at 0 degrees, adjusted by rotation).
-ArrowDown: Move backward opposite the barrel’s direction.
-ArrowLeft: Rotate counterclockwise at 0.05 radians per frame.
-ArrowRight: Rotate clockwise at 0.05 radians per frame.
-Stops immediately when keys are released, with no residual momentum or drift.
-Collision: Collides with obstacles and world bounds, halting movement without clipping or passing through.
-Health: Starts at 1000 HP. Takes damage from enemy projectiles equal to their damage value. Gains 500ms invincibility after each hit (no further damage during this period), indicated by a red tint that clears when invincibility ends.
-Weapons:
-Options: Cannon (400px/s speed, 20 damage, shell.png), MachineGun (600px/s speed, 10 damage, bullet.png), Rocket (300px/s speed, 50 damage, rocket.png).
-Switch: Press W to cycle through weapons in order (Cannon → MachineGun → Rocket → Cannon), logging each switch to the console (e.g., [timestamp] Weapon switched to: Cannon).
-Fire: Press Space to spawn a projectile 40 pixels ahead of the barrel, moving in the barrel’s direction at the weapon’s speed. Single-shot per press (no repeat firing on hold).
-Destruction: At 0 HP, spawns rubble.png at its last position and triggers the game over state.
-Enemy Tanks:
-Quantity: 5 enemy tanks, each rendered with enemy.png, 64x64 pixels, centered on their physics bodies.
-Starting Position: Randomly placed within the 2000x2000 world, at least 500 pixels from the player tank and 32 pixels from obstacles (96px total buffer from obstacle centers).
-Movement:
-Speed: 100 pixels/second.
-Default Behavior: Random walking—moves in a straight line in a randomly chosen direction (0 to 2π radians). On collision with an obstacle or world bound, selects a new random direction and continues.
-LOS Behavior: When the player enters a 400-pixel-long, 64-pixel-wide corridor ahead of the enemy’s barrel (path-based line of sight), switches to chasing the player, moving directly toward the player’s position at 100px/s.
-Collision: Collides with obstacles, world bounds, and other enemy tanks, adjusting direction on impact.
-Health: Starts at 50 HP. Takes damage from player projectiles equal to their damage value.
-Weapons: Fires the Cannon (400px/s, 20 damage, shell.png) every 2 seconds when the player is in LOS, spawning projectiles 40 pixels ahead of the barrel in the barrel’s direction.
-Destruction: At 0 HP, spawns rubble.png at its last position and is removed from the game.
-Obstacles:
-Quantity and Types: 50 random obstacles (mix of wall.png, crate.png, tree.png, equal probability) plus rock borders.
-Placement: Random obstacles are scattered within the 2000x2000 world, at least 32 pixels apart (96px center-to-center). Rock borders (rock.png) line the world edges:
-Top and bottom: Every 64 pixels from x=0 to x=2000 at y=0 and y=2000.
-Left and right: Every 64 pixels from y=0 to y=2000 at x=0 and x=2000.
-Collision: Static, impassable barriers for tanks and projectiles, triggering direction changes for enemies and destruction for projectiles.
-Projectiles:
-Appearance: Uses shell.png, bullet.png, or rocket.png based on the firing weapon, 64x64 pixels, centered on their physics bodies.
-Behavior: Moves in a straight line at the weapon’s speed (400px/s, 600px/s, or 300px/s). Despawns after 3000ms if no collision occurs.
-Collision:
-With obstacles: Spawns an explosion (explosion.png, 96x96 pixels, centered) and despawns immediately.
-With player: Deals damage if from an enemy tank and player isn’t invincible, then spawns an explosion and despawns.
-With enemy: Deals damage if from the player, then spawns an explosion and despawns.
-Explosions:
-Appearance: Rendered with explosion.png, 96x96 pixels, centered at the collision point.
-Behavior: Visual effect only, persists for 500ms before despawning, no collision or damage properties.
-Rubble:
-Appearance: Rendered with rubble.png, 64x64 pixels, centered at the destroyed tank’s last position.
-Behavior: Static visual remnant, persists until game end, no collision or interaction.
-User Interface
-Health Display: Text at top-left corner (x=10, y=10) in white, 20px font, fixed to the viewport (doesn’t scroll), showing Health: [player.health] (e.g., Health: 1000), updating in real-time.
-Minimap:
-Position: Top-right corner (x=650, y=50), 150x150 pixels, gray background (#555555), fixed to the viewport.
-Content: Scales the 2000x2000 world to 150x150:
-Player: Green dot, 3-pixel radius, at scaled position (e.g., world x=1000 → minimap x=675).
-Enemies: Red dots, 3-pixel radius, at scaled positions, visible only if health > 0.
-Updates: Refreshes dot positions each frame to reflect tank movements accurately.
-Game Over Screen:
-Trigger: Player health reaches 0.
-Display: Centered text “Game Over” in red, 40px font, with “Restart” below in white, 20px font, both fixed to the viewport.
-Interaction: Clicking “Restart” reloads the page to restart the game.
-Win Screen:
-Trigger: All enemy tanks’ health reaches 0.
-Display: Centered text “You Win!” in green, 40px font, with “Restart” below in white, 20px font, both fixed to the viewport.
-Interaction: Clicking “Restart” reloads the page to restart the game.
-Gameplay Mechanics
-Controls:
-Movement: ArrowUp, ArrowDown, ArrowLeft, ArrowRight.
-Weapon Switch: W (single press, no repeat).
-Fire: Space (single press, no repeat).
-Collision Handling: Tanks and projectiles interact with obstacles and each other via physics, with no stack traces or errors on impact (e.g., player hit by enemy projectile).
-Logging: Console logs weapon switches (e.g., [timestamp] Weapon switched to: Cannon) for debugging, with timestamps in milliseconds since epoch.
-Performance and Stability
-Frame Rate: Target 60 FPS, with no lag or stuttering under full load (5 enemies, 62+ obstacles, multiple projectiles).
-Error Handling: No runtime errors, stack traces, or uncaught exceptions, especially during collisions, player hits, or game state transitions (win/lose).
-Asset Loading: Ensure all images load before starting the game, logging errors to the console if any asset fails to load (e.g., Failed to load tank.png).
-Deployment Details
-File Structure:
-index.html: Single HTML file with all code and logic.
-assets/: Folder containing all image files and an empty sounds/ subfolder.
-S3 Hosting: Must run as a static website on AWS S3, with public read access configured via bucket policy:
-json
+## General Requirements
+- **Deployment**: Deliver a single HTML file (index.html) with embedded or externally referenced JavaScript and CSS, suitable for static hosting on an AWS S3 bucket (e.g., http://tank-simulator.s3-website-us-west-2.amazonaws.com). All assets must reside in an assets folder within the bucket root.
+- **Assets**: Utilize the following image files: tank.png, enemy.png, shell.png, bullet.png, rocket.png, wall.png, crate.png, tree.png, rock.png, explosion.png, rubble.png. Each is 64x64 pixels, with tank sprites (tank.png, enemy.png) oriented barrels-up (north, toward the top of the user's monitor) at 0-degree rotation unless rotated during gameplay. Include a sounds subfolder with audio files: shoot.mp3, explosion.mp3, hit.mp3, switch.mp3, and tank_engine.mp3.
+- **World**: A 2000x2000 pixel game world, viewed through an 800x600 pixel viewport centered on the player tank. The viewport scrolls smoothly as the player moves, respecting world bounds (0,0 to 2000,2000).
+- **Performance**: Target a consistent 60 FPS with no noticeable lag, even with 5 enemy tanks, 62+ obstacles, and multiple projectiles active. Avoid stack traces, runtime errors, or uncaught exceptions, particularly during collisions or player hits.
+- **Orientation**: All tank sprites (player and enemy) initialize with barrels pointing up (north) at 0-degree rotation. Movement and rotation must align with this orientation, where "forward" is along the barrel's direction post-rotation.
+- **Tracking**: Implement API calls to track page loads and restart button clicks using a Lambda URL endpoint.
 
-Collapse
+## Game Objects and Behaviors
 
-Wrap
+### Player Tank:
+- **Appearance**: Rendered with tank.png, 64x64 pixels, centered on its physics body.
+- **Starting Position**: Randomly placed within the 2000x2000 world, ensuring a minimum 96-pixel buffer from obstacle edges (measured from obstacle centers).
+- **Movement**:
+  - Speed: 200 pixels/second.
+  - Controls:
+    - ArrowUp: Move forward along the barrel's current direction (north at 0 degrees, adjusted by rotation).
+    - ArrowDown: Move backward opposite the barrel's direction.
+    - ArrowLeft: Rotate counterclockwise at 0.05 radians per frame.
+    - ArrowRight: Rotate clockwise at 0.05 radians per frame.
+  - Stops immediately when keys are released, with no residual momentum or drift.
+  - Engine sound plays when moving, stops when stationary.
+- **Collision**: Collides with obstacles and world bounds, halting movement without clipping or passing through. Reduced collision boundaries for better navigation.
+- **Health**: Starts at 1000 HP. Takes damage from enemy projectiles equal to their damage value. Gains 500ms invincibility after each hit (no further damage during this period), indicated by a red tint that clears when invincibility ends.
+- **Weapons**:
+  - Options: Cannon (400px/s speed, 20 damage, shell.png), MachineGun (600px/s speed, 10 damage, bullet.png), Rocket (300px/s speed, 50 damage, rocket.png).
+  - Switch: Press W to cycle through weapons in order (Cannon → MachineGun → Rocket → Cannon), logging each switch to the console (e.g., [timestamp] Weapon switched to: Cannon).
+  - Fire: Press Space to spawn a projectile 40 pixels ahead of the barrel, moving in the barrel's direction at the weapon's speed. Single-shot per press (no repeat firing on hold).
+  - Visual indicator shows current weapon name and icon.
+- **Destruction**: At 0 HP, spawns rubble.png at its last position and triggers the game over state.
 
-Copy
+### Enemy Tanks:
+- **Quantity**: 5 enemy tanks, each rendered with enemy.png, 64x64 pixels, centered on their physics bodies.
+- **Starting Position**: Randomly placed within the 2000x2000 world, at least 500 pixels from the player tank and 96 pixels from obstacle centers.
+- **Movement**:
+  - Speed: 100 pixels/second.
+  - Default Behavior: Random walking—moves in a straight line in a randomly chosen direction. Tank barrel properly points in the direction of movement. On collision with an obstacle or world bound, selects a new random direction and continues.
+  - Direction Changes: Changes direction randomly every 2-5 seconds when not chasing the player.
+  - LOS Behavior: When the player enters a 400-pixel-long, 64-pixel-wide corridor ahead of the enemy's barrel (path-based line of sight), switches to chasing the player, moving directly toward the player's position at 100px/s.
+- **Collision**: Collides with obstacles, world bounds, and other enemy tanks, adjusting direction on impact. Reduced collision boundaries for better navigation.
+- **Health**: Starts at 50 HP. Takes damage from player projectiles equal to their damage value.
+- **Weapons**: Fires the Cannon (400px/s, 20 damage, shell.png) every 2 seconds when the player is in LOS, spawning projectiles 40 pixels ahead of the barrel in the barrel's direction.
+- **Destruction**: At 0 HP, spawns rubble.png at its last position and is removed from the game. Increases player's score by 1.
+
+### Obstacles:
+- **Quantity and Types**: 50 random obstacles (mix of wall.png, crate.png, tree.png, equal probability) plus rock borders.
+- **Placement**: Random obstacles are scattered within the 2000x2000 world, at least 32 pixels apart (96px center-to-center). Rock borders (rock.png) line the world edges:
+  - Top and bottom: Every 64 pixels from x=0 to x=2000 at y=0 and y=2000.
+  - Left and right: Every 64 pixels from y=0 to y=2000 at x=0 and x=2000.
+- **Collision**: Static, impassable barriers for tanks and projectiles, triggering direction changes for enemies and destruction for projectiles. Reduced collision boundaries (85% of original radius) for better navigation.
+
+### Projectiles:
+- **Appearance**: Uses shell.png, bullet.png, or rocket.png based on the firing weapon, 64x64 pixels, centered on their physics bodies.
+- **Behavior**: Moves in a straight line at the weapon's speed (400px/s, 600px/s, or 300px/s). Despawns after 3000ms if no collision occurs.
+- **Collision**:
+  - With obstacles: Spawns an explosion (explosion.png, 96x96 pixels, centered) and despawns immediately.
+  - With player: Deals damage if from an enemy tank and player isn't invincible, then spawns an explosion and despawns.
+  - With enemy: Deals damage if from the player, then spawns an explosion and despawns.
+- **Sound**: Plays appropriate sound effect when fired and when exploding.
+
+### Explosions:
+- **Appearance**: Rendered with explosion.png, 96x96 pixels, centered at the collision point.
+- **Behavior**: Visual effect only, persists for 500ms before despawning, no collision or damage properties.
+- **Sound**: Plays explosion sound when created.
+
+### Rubble:
+- **Appearance**: Rendered with rubble.png, 64x64 pixels, centered at the destroyed tank's last position.
+- **Behavior**: Static visual remnant, persists until game end, no collision or interaction.
+
+## User Interface
+
+### Health Display:
+- Text at top-left corner (x=10, y=10) in white, 20px font, fixed to the viewport (doesn't scroll), showing Health: [player.health] (e.g., Health: 1000), updating in real-time.
+
+### Score Display:
+- Text below health display showing Tanks Destroyed: [playerScore], updating when enemy tanks are destroyed.
+
+### Weapon Display:
+- Shows current weapon name and icon below the score display.
+
+### Minimap:
+- Position: Top-right corner (x=650, y=50), 150x150 pixels, gray background (#555555), fixed to the viewport.
+- Content: Scales the 2000x2000 world to 150x150:
+  - Player: Green dot, 3-pixel radius, at scaled position (e.g., world x=1000 → minimap x=675).
+  - Enemies: Red dots, 3-pixel radius, at scaled positions, visible only if health > 0.
+- Updates: Refreshes dot positions each frame to reflect tank movements accurately.
+
+### Game Instructions:
+- Positioned below the minimap to avoid overlap.
+- Shows controls and objective information.
+
+### Game Over Screen:
+- Trigger: Player health reaches 0.
+- Display: Centered text "Game Over" in red, 40px font, with "Restart" below in white, 20px font, both fixed to the viewport.
+- Interaction: Clicking "Restart" reloads the page to restart the game and tracks the interaction.
+
+### Win Screen:
+- Trigger: All enemy tanks' health reaches 0.
+- Display: Centered text "You Win!" in green, 40px font, with "Restart" below in white, 20px font, both fixed to the viewport.
+- Interaction: Clicking "Restart" reloads the page to restart the game and tracks the interaction.
+
+## Gameplay Mechanics
+
+### Controls:
+- Movement: ArrowUp, ArrowDown, ArrowLeft, ArrowRight.
+- Weapon Switch: W (single press, no repeat).
+- Fire: Space (single press, no repeat).
+
+### Audio:
+- Engine sound plays while moving (loops, stops when not moving).
+- Weapon firing sounds when shooting.
+- Explosion sounds when projectiles hit something.
+- Hit sound when taking damage.
+- Weapon switch sound when changing weapons.
+
+### Collision Handling:
+- Tanks and projectiles interact with obstacles and each other via physics, with no stack traces or errors on impact.
+- Reduced collision boundaries to improve navigation.
+
+### Scoring:
+- Player earns 1 point for each enemy tank destroyed.
+
+### Tracking:
+- Track page loads with "game_loaded" event.
+- Track restart button clicks with "restart_button" event.
+- Send tracking data to specified Lambda URL endpoint.
+
+### Logging:
+- Console logs weapon switches (e.g., [timestamp] Weapon switched to: Cannon) for debugging, with timestamps in milliseconds since epoch.
+
+## Performance and Stability
+- Frame Rate: Target 60 FPS, with no lag or stuttering under full load (5 enemies, 62+ obstacles, multiple projectiles).
+- Error Handling: No runtime errors, stack traces, or uncaught exceptions, especially during collisions, player hits, or game state transitions (win/lose).
+- Asset Loading: Ensure all images and audio load before starting the game, logging errors to the console if any asset fails to load.
+
+## Deployment Details
+- File Structure:
+  - index.html: Single HTML file with all code and logic.
+  - assets/: Folder containing all image files.
+  - assets/sounds/: Subfolder containing all audio files.
+- S3 Hosting: Must run as a static website on AWS S3, with public read access configured via bucket policy:
+```json
 {
     "Version": "2012-10-17",
     "Statement": [{
@@ -104,11 +155,14 @@ Copy
         "Resource": "arn:aws:s3:::tank-simulator/*"
     }]
 }
-Testing: Verify deployment at http://tank-simulator.s3-website-us-west-2.amazonaws.com, ensuring all assets load, gameplay is smooth, and no errors occur in the browser console.
-Deliverables
-A single index.html file containing all necessary code (HTML, CSS, JavaScript) to run the game.
-Detailed instructions for deploying to AWS S3, assuming the assets folder is uploaded alongside index.html.
-Notes
-Focus on simplicity and reliability—avoid overcomplicating the implementation while meeting all specified requirements.
-Ensure all game objects (tanks, obstacles, projectiles) respect the 64x64 pixel size and barrel-up orientation for consistency.
-Prioritize a bug-free experience, with special attention to collision handling and player movement to prevent past issues (e.g., jumping off-screen, stack traces).
+```
+- Testing: Verify deployment at http://tank-simulator.s3-website-us-west-2.amazonaws.com, ensuring all assets load, gameplay is smooth, and no errors occur in the browser console.
+
+## Deliverables
+- A single index.html file containing all necessary code (HTML, CSS, JavaScript) to run the game.
+- Detailed instructions for deploying to AWS S3, assuming the assets folder is uploaded alongside index.html.
+
+## Notes
+- Focus on simplicity and reliability—avoid overcomplicating the implementation while meeting all specified requirements.
+- Ensure all game objects (tanks, obstacles, projectiles) respect the 64x64 pixel size and barrel-up orientation for consistency.
+- Prioritize a bug-free experience, with special attention to collision handling and player movement to prevent issues (e.g., jumping off-screen, stack traces).
