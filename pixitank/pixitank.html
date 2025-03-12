@@ -54,6 +54,28 @@
             return x >= 32 && x <= 1968 && y >= 32 && y <= 1968; // Within bounds
         }
 
+        // Check if player is in enemy's path (simplified LOS)
+        function isPlayerInPath(enemy) {
+            const angle = enemy.direction; // Current movement direction
+            const pathLength = 400; // Max path distance to check
+            const pathWidth = 64; // Width of the path corridor
+
+            const dx = player.x - enemy.x;
+            const dy = player.y - enemy.y;
+            const dist = distance(enemy.x, enemy.y, player.x, player.y);
+
+            if (dist > pathLength) return false; // Player too far
+
+            // Project player's position onto enemy's direction
+            const cosAngle = Math.cos(angle);
+            const sinAngle = Math.sin(angle);
+            const alongPath = dx * cosAngle + dy * sinAngle; // Distance along direction
+            const perpPath = dx * sinAngle - dy * cosAngle; // Distance perpendicular to direction
+
+            // Player is in path if within length and width
+            return alongPath > 0 && alongPath <= pathLength && Math.abs(perpPath) < pathWidth / 2;
+        }
+
         // Initialization
         async function init() {
             app = new PIXI.Application({
@@ -65,20 +87,20 @@
             });
             document.body.appendChild(app.view);
 
-            // Load Assets (Using crate.png instead of box.png, removed tree.png)
+            // Load Assets
             await PIXI.Assets.load([
                 'assets/tank.png', 'assets/enemy.png', 'assets/shell.png',
                 'assets/bullet.png', 'assets/rocket.png', 'assets/wall.png',
-                'assets/crate.png', 'assets/rock.png', 'assets/explosion.png',
-                'assets/rubble.png'
+                'assets/crate.png', 'assets/tree.png', 'assets/rock.png',
+                'assets/explosion.png', 'assets/rubble.png'
             ]);
 
             // Game World Container
             const worldContainer = new PIXI.Container();
             app.stage.addChild(worldContainer);
 
-            // Obstacles (Walls and Crates)
-            const obstacleTypes = ['wall', 'crate'];
+            // Obstacles (Walls, Crates, Trees)
+            const obstacleTypes = ['wall', 'crate', 'tree'];
             for (let i = 0; i < 50; i++) {
                 const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
                 const obstacle = new PIXI.Sprite(PIXI.Texture.from(`assets/${type}.png`));
@@ -145,7 +167,7 @@
                 enemy.width = enemy.height = 64;
                 enemy.health = 50;
                 enemy.lastFired = 0;
-                enemy.target = { x: Math.random() * 2000, y: Math.random() * 2000 };
+                enemy.direction = Math.random() * 2 * Math.PI; // Random initial direction
                 worldContainer.addChild(enemy);
                 enemies.push(enemy);
             }
@@ -209,21 +231,21 @@
             }
 
             // Player Movement
-            const speed = 200 * delta / 60;
-            const rotSpeed = degToRad(150) * delta / 60;
+            const playerSpeed = 200 * delta / 1000; // Convert delta (ms) to seconds
+            const rotSpeed = degToRad(150) * delta / 1000;
             if (keys['ArrowLeft']) player.rotation -= rotSpeed;
             if (keys['ArrowRight']) player.rotation += rotSpeed;
             if (keys['ArrowUp']) {
-                const newX = player.x + Math.cos(player.rotation - Math.PI / 2) * speed;
-                const newY = player.y + Math.sin(player.rotation - Math.PI / 2) * speed;
+                const newX = player.x + Math.cos(player.rotation - Math.PI / 2) * playerSpeed;
+                const newY = player.y + Math.sin(player.rotation - Math.PI / 2) * playerSpeed;
                 if (!checkCollisions(newX, newY, player)) {
                     player.x = newX;
                     player.y = newY;
                 }
             }
             if (keys['ArrowDown']) {
-                const newX = player.x - Math.cos(player.rotation - Math.PI / 2) * speed;
-                const newY = player.y - Math.sin(player.rotation - Math.PI / 2) * speed;
+                const newX = player.x - Math.cos(player.rotation - Math.PI / 2) * playerSpeed;
+                const newY = player.y - Math.sin(player.rotation - Math.PI / 2) * playerSpeed;
                 if (!checkCollisions(newX, newY, player)) {
                     player.x = newX;
                     player.y = newY;
@@ -246,29 +268,45 @@
             // Enemy AI
             enemies.forEach(enemy => {
                 if (enemy.health <= 0) return;
-                const dist = distance(enemy.x, enemy.y, player.x, player.y);
-                if (dist < 400) {
-                    const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + Math.PI / 2;
-                    enemy.rotation = angle; // Barrel points at player
+
+                const moveSpeed = 100 * delta / 1000; // 100px/s, delta in seconds
+                let targetX = player.x;
+                let targetY = player.y;
+                let chasingPlayer = false;
+
+                // Check if player is in path
+                if (isPlayerInPath(enemy)) {
+                    chasingPlayer = true;
+                    console.log(`[${Date.now()}] Enemy ${enemies.indexOf(enemy)} sees player in path, chasing`);
                     if (Date.now() - enemy.lastFired > 2000) {
                         fireProjectile(enemy, weaponStats['Cannon']);
                         enemy.lastFired = Date.now();
                         console.log(`[${Date.now()}] Enemy fired at (${player.x}, ${player.y})`);
                     }
-                } else {
-                    // Random walking toward target
-                    const targetAngle = Math.atan2(enemy.target.y - enemy.y, enemy.target.x - enemy.x);
-                    enemy.rotation = targetAngle + Math.PI / 2; // Barrel faces target direction
-                    const moveSpeed = 100 * delta / 60;
+                }
+
+                if (chasingPlayer) {
+                    // Chase player
+                    const targetAngle = Math.atan2(targetY - enemy.y, targetX - enemy.x);
+                    enemy.rotation = targetAngle + Math.PI / 2; // Barrel faces player
                     const newX = enemy.x + Math.cos(targetAngle) * moveSpeed;
                     const newY = enemy.y + Math.sin(targetAngle) * moveSpeed;
                     if (!checkCollisions(newX, newY, enemy)) {
                         enemy.x = newX;
                         enemy.y = newY;
                     }
-                    if (distance(enemy.x, enemy.y, enemy.target.x, enemy.target.y) < 10) {
-                        enemy.target = { x: Math.random() * 2000, y: Math.random() * 2000 };
-                        console.log(`[${Date.now()}] Enemy ${enemies.indexOf(enemy)} new target: (${enemy.target.x}, ${enemy.target.y})`);
+                } else {
+                    // Random walk
+                    const newX = enemy.x + Math.cos(enemy.direction) * moveSpeed;
+                    const newY = enemy.y + Math.sin(enemy.direction) * moveSpeed;
+                    if (!checkCollisions(newX, newY, enemy)) {
+                        enemy.x = newX;
+                        enemy.y = newY;
+                        enemy.rotation = enemy.direction + Math.PI / 2; // Barrel faces direction
+                    } else {
+                        // Collision: pick new random direction
+                        enemy.direction = Math.random() * 2 * Math.PI;
+                        console.log(`[${Date.now()}] Enemy ${enemies.indexOf(enemy)} hit obstacle, new direction: ${radToDeg(enemy.direction)}°`);
                     }
                 }
             });
@@ -277,7 +315,7 @@
             projectiles.forEach((proj, i) => {
                 const data = projectileData[proj.customId];
                 if (!data || data.hasHit) return;
-                const speed = data.speed * delta / 60;
+                const speed = data.speed * delta / 1000;
                 proj.x += Math.cos(proj.rotation - Math.PI / 2) * speed;
                 proj.y += Math.sin(proj.rotation - Math.PI / 2) * speed;
 
