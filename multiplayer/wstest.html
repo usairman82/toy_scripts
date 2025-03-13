@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket API Gateway Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow: auto; }
+        .log { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket API Gateway Test</h1>
+    
+    <div>
+        <label for="websocket-url">WebSocket URL:</label>
+        <input type="text" id="websocket-url" value="wss://ovjcbwvkmi.execute-api.us-west-2.amazonaws.com/production/" style="width: 100%;">
+    </div>
+    
+    <div style="margin-top: 10px;">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="sendPing()">Send Ping</button>
+        <button onclick="sendJoin()">Send Join</button>
+    </div>
+    
+    <h3>Connection Log:</h3>
+    <div id="log" class="log"></div>
+    
+    <script>
+        let socket = null;
+        const logElement = document.getElementById('log');
+        
+        function logMessage(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+        
+        function connect() {
+            try {
+                const url = document.getElementById('websocket-url').value;
+                logMessage(`Attempting to connect to: ${url}`);
+                
+                if (socket && socket.readyState < 2) {
+                    logMessage('Already connected or connecting. Disconnecting first.', 'info');
+                    socket.close();
+                }
+                
+                socket = new WebSocket(url);
+                
+                socket.onopen = (event) => {
+                    logMessage('Connection established!', 'success');
+                };
+                
+                socket.onclose = (event) => {
+                    logMessage(`Connection closed. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`, 
+                              event.wasClean ? 'info' : 'error');
+                };
+                
+                socket.onerror = (error) => {
+                    logMessage(`WebSocket error: ${error.message || 'Unknown error'}`, 'error');
+                };
+                
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        logMessage(`Received message: ${JSON.stringify(data)}`, 'success');
+                    } catch (e) {
+                        logMessage(`Received non-JSON message: ${event.data}`, 'info');
+                    }
+                };
+            } catch (error) {
+                logMessage(`Error creating WebSocket: ${error.message}`, 'error');
+            }
+        }
+        
+        function disconnect() {
+            if (socket) {
+                logMessage('Closing connection...', 'info');
+                socket.close();
+                socket = null;
+            } else {
+                logMessage('No active connection to close.', 'error');
+            }
+        }
+        
+        function sendPing() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                logMessage('Socket not connected. Cannot send message.', 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'ping',
+                timestamp: Date.now()
+            };
+            
+            try {
+                socket.send(JSON.stringify(message));
+                logMessage(`Sent: ${JSON.stringify(message)}`, 'info');
+            } catch (error) {
+                logMessage(`Error sending message: ${error.message}`, 'error');
+            }
+        }
+        
+        function sendJoin() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                logMessage('Socket not connected. Cannot send message.', 'error');
+                return;
+            }
+            
+            const playerId = Math.random().toString(36).substring(2, 15);
+            const message = {
+                type: 'join',
+                playerId: playerId
+            };
+            
+            try {
+                socket.send(JSON.stringify(message));
+                logMessage(`Sent join with playerId: ${playerId}`, 'info');
+            } catch (error) {
+                logMessage(`Error sending message: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

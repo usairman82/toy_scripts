@@ -93,7 +93,15 @@ def handle_connect(event):
         )
         
         logger.info(f"Connection established and stored: {connection_id}")
-        return {'statusCode': 200, 'body': 'Connected'}
+        return {
+            'statusCode': 200, 
+            'body': 'Connected',
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            }
+        }
     
     except Exception as e:
         logger.error(f"Error storing connection {connection_id}: {str(e)}")
@@ -152,6 +160,9 @@ def handle_message(event):
             return handle_leave(connection_id, message_body)
         elif message_type in ['offer', 'answer', 'ice_candidate']:
             return handle_signaling_message(connection_id, message_body)
+        elif message_type == 'ping':
+            # Handle simple ping messages for debugging
+            return {'statusCode': 200, 'body': 'pong'}
         else:
             logger.warning(f"Unknown message type: {message_type} from {connection_id}")
             return {'statusCode': 400, 'body': 'Unknown message type'}
@@ -173,11 +184,22 @@ def handle_join(connection_id, message):
     
     if not player_id:
         logger.warning(f"Join attempt without player ID from connection: {connection_id}")
-        return {'statusCode': 400, 'body': 'Player ID is required'}
+        return {
+            'statusCode': 400, 
+            'body': 'Player ID is required',
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            }
+        }
     
     try:
         # Always use the same permanent room name
         permanent_room_name = "tank-simulator-main-room"
+        
+        # Add detailed logging for debugging
+        logger.debug(f"DEBUGGING: Player {player_id} with connection {connection_id} joining {permanent_room_name}")
         
         # Check if the permanent room exists, if not create it
         response = rooms_table.get_item(Key={'room_name': permanent_room_name})
@@ -192,8 +214,10 @@ def handle_join(connection_id, message):
                     'created_at': datetime.now().isoformat()
                 }
             )
+            logger.debug(f"DEBUGGING: Created new permanent room {permanent_room_name}")
         else:
             logger.info(f"Using existing permanent room: {permanent_room_name}")
+            logger.debug(f"DEBUGGING: Room data: {json.dumps(response['Item'])}")
         
         # Update connection record with player info and room
         connections_table.update_item(
@@ -204,10 +228,12 @@ def handle_join(connection_id, message):
                 ':room': permanent_room_name
             }
         )
+        logger.debug(f"DEBUGGING: Updated connection record for {connection_id} with player_id {player_id}")
         
         # Get the current player list for the room
         response = rooms_table.get_item(Key={'room_name': permanent_room_name})
         players = response['Item'].get('players', []) if 'Item' in response else []
+        logger.debug(f"DEBUGGING: Current player list in room: {players}")
         
         # Clean up the player list by checking which players are still connected
         active_players = []
@@ -218,6 +244,9 @@ def handle_join(connection_id, message):
             )
             if conn_response.get('Items'):
                 active_players.append(pid)
+                logger.debug(f"DEBUGGING: Player {pid} is still active")
+            else:
+                logger.debug(f"DEBUGGING: Player {pid} is no longer active, removing")
         
         # Update the room with only active players
         if active_players != players:
@@ -228,6 +257,7 @@ def handle_join(connection_id, message):
                 UpdateExpression='SET players = :players',
                 ExpressionAttributeValues={':players': players}
             )
+            logger.debug(f"DEBUGGING: Updated room with cleaned player list: {active_players}")
         
         # Add the current player if not already in the list
         if player_id not in players:
@@ -237,30 +267,65 @@ def handle_join(connection_id, message):
                 UpdateExpression='SET players = :players',
                 ExpressionAttributeValues={':players': players}
             )
+            logger.debug(f"DEBUGGING: Added player {player_id} to room, new list: {players}")
         
         # Send room info to the new player
         existing_players = [p for p in players if p != player_id]
-        send_to_connection(connection_id, {
+        room_info_message = {
             'type': 'room_info',
             'players': existing_players
-        })
+        }
+        logger.debug(f"DEBUGGING: Sending room_info to player {player_id}: {json.dumps(room_info_message)}")
+        send_result = send_to_connection(connection_id, room_info_message)
+        
+        if not send_result:
+            logger.error(f"DEBUGGING: Failed to send room_info to player {player_id}")
+            # Try to analyze why the send failed
+            try:
+                api_client.get_connection(ConnectionId=connection_id)
+                logger.debug(f"DEBUGGING: Connection {connection_id} still exists according to API")
+            except Exception as conn_error:
+                logger.error(f"DEBUGGING: Error checking connection: {str(conn_error)}")
         
         # Notify other players about the new player
         player_connections = get_player_connections(permanent_room_name)
+        logger.debug(f"DEBUGGING: Found {len(player_connections)} other connections to notify")
+        
         for pid, conn_id in player_connections.items():
             if pid != player_id:
-                send_to_connection(conn_id, {
+                new_player_message = {
                     'type': 'new_player',
                     'playerId': player_id
-                })
+                }
+                logger.debug(f"DEBUGGING: Notifying player {pid} about new player {player_id}")
+                send_result = send_to_connection(conn_id, new_player_message)
+                
+                if not send_result:
+                    logger.warning(f"DEBUGGING: Failed to notify player {pid} about new player {player_id}")
         
         logger.info(f"Player {player_id} successfully joined permanent room with {len(existing_players)} existing players")
-        return {'statusCode': 200, 'body': 'Joined room'}
+        return {
+            'statusCode': 200, 
+            'body': 'Joined room',
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            }
+        }
     
     except Exception as e:
         logger.error(f"Error handling join for player {player_id}: {str(e)}")
         logger.error(traceback.format_exc())
-        return {'statusCode': 500, 'body': json.dumps({'error': str(e)})}
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'error': str(e)}),
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            }
+        }
 
 def handle_leave(connection_id, message):
     """Handle a player leaving a game room"""
@@ -460,15 +525,20 @@ def send_to_connection(connection_id, data):
         return True
     
     except Exception as e:
-        logger.error(f"Error sending message to connection {connection_id}: {str(e)}")
+        error_message = str(e)
+        logger.error(f"Error sending message to connection {connection_id}: {error_message}")
         
-        # If the connection is gone, clean it up
-        if 'GoneException' in str(e):
+        # More detailed error analysis
+        if 'GoneException' in error_message:
             logger.info(f"Connection {connection_id} is gone, cleaning up")
             try:
                 connections_table.delete_item(Key={'connection_id': connection_id})
                 logger.info(f"Cleaned up gone connection: {connection_id}")
             except Exception as cleanup_error:
                 logger.error(f"Error cleaning up connection: {str(cleanup_error)}")
+        elif 'LimitExceededException' in error_message:
+            logger.error("Rate limit exceeded when sending message. Consider implementing backoff.")
+        elif 'PayloadTooLargeException' in error_message:
+            logger.error(f"Payload too large: {len(json.dumps(data))} bytes")
         
         return False
