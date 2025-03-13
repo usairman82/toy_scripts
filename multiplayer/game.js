@@ -1011,7 +1011,18 @@ function loadSoundPreference() {
             
             // Set volume for all audio elements
             for (const audio of Object.values(audioElements)) {
-                audio.volume = soundEnabled ? (audio === audioElements.engine ? 0.2 : 0.3) : 0;
+                if (audio === audioElements.background) {
+                    audio.volume = soundEnabled ? 0.1 : 0; // Background audio is quieter
+                } else if (audio === audioElements.engine) {
+                    audio.volume = soundEnabled ? 0.2 : 0; // Engine is a bit louder
+                } else {
+                    audio.volume = soundEnabled ? 0.3 : 0; // Other sounds are louder
+                }
+            }
+            
+            // Start background audio if enabled (after a slight delay to let page load)
+            if (soundEnabled && audioElements.background) {
+                setTimeout(() => startBackgroundAudio(), 1000);
             }
         }
     } catch (e) {
@@ -1069,3 +1080,160 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load saved preference
     loadSoundPreference();
 });
+
+
+// Add background ambient sound
+const backgroundAudio = new Audio('assets/sounds/bgnoise.mp3');
+backgroundAudio.loop = true;
+backgroundAudio.volume = 0.1; // Low volume (adjust as needed)
+backgroundAudio.preload = 'auto';
+
+// Add it to the audioElements object
+audioElements.background = backgroundAudio;
+
+// Function to start background audio (should be called after user interaction)
+function startBackgroundAudio() {
+    if (soundEnabled) {
+        backgroundAudio.play().catch(err => {
+            console.log("Background audio play interrupted: " + err.message);
+            
+            // Try again after a short delay (some browsers need this)
+            setTimeout(() => {
+                backgroundAudio.play().catch(e => 
+                    console.log("Second attempt to play background audio failed: " + e.message));
+            }, 1000);
+        });
+    }
+}
+
+// Function to stop background audio
+function stopBackgroundAudio() {
+    backgroundAudio.pause();
+}
+
+// Update toggleSound function to handle background audio
+const originalToggleSound = window.toggleSound || function() {};
+window.toggleSound = function() {
+    // Call the original function if it exists
+    if (typeof originalToggleSound === 'function') {
+        originalToggleSound();
+    } else {
+        // If the original doesn't exist, implement the basic functionality
+        soundEnabled = !soundEnabled;
+    }
+    
+    // Handle background audio specifically
+    if (soundEnabled) {
+        backgroundAudio.volume = 0.1;
+        startBackgroundAudio();
+    } else {
+        backgroundAudio.volume = 0;
+    }
+};
+
+// Start background audio when the game starts (after user interaction)
+// Add this to your initGame function or any function that's called after user interaction
+function setupBackgroundAudio() {
+    // Start background audio when user presses any key or clicks/taps anywhere
+    const startAudioOnInteraction = function() {
+        startBackgroundAudio();
+        
+        // Remove event listeners after first interaction
+        document.removeEventListener('click', startAudioOnInteraction);
+        document.removeEventListener('touchstart', startAudioOnInteraction);
+        document.removeEventListener('keydown', startAudioOnInteraction);
+    };
+    
+    // Add event listeners for user interaction
+    document.addEventListener('click', startAudioOnInteraction);
+    document.addEventListener('touchstart', startAudioOnInteraction);
+    document.addEventListener('keydown', startAudioOnInteraction);
+    
+    // Also try to start it immediately (will work if autoplay is allowed)
+    startBackgroundAudio();
+}
+
+// Call this function to set up the background audio
+document.addEventListener('DOMContentLoaded', setupBackgroundAudio);
+
+//-----
+// Track if background audio was playing before pause
+let wasBackgroundPlaying = false;
+
+// Handle visibility change (tab switching/browser minimizing)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Tab is hidden, pause background audio
+        if (audioElements.background && !audioElements.background.paused) {
+            wasBackgroundPlaying = true;
+            audioElements.background.pause();
+        }
+        
+        // Also pause engine sound if it's playing
+        if (audioElements.engine && engineSoundPlaying) {
+            audioElements.engine.pause();
+        }
+    } else {
+        // Tab is visible again, resume background audio if it was playing
+        if (soundEnabled && wasBackgroundPlaying) {
+            audioElements.background.play().catch(err => {
+                console.log("Failed to resume background audio: " + err.message);
+            });
+            wasBackgroundPlaying = false;
+        }
+        
+        // Don't automatically resume engine sound - it will resume when player moves
+    }
+});
+
+// Handle window focus/blur (similar to visibility but different in some browsers)
+window.addEventListener('blur', function() {
+    // Window lost focus, pause background audio
+    if (audioElements.background && !audioElements.background.paused) {
+        wasBackgroundPlaying = true;
+        audioElements.background.pause();
+    }
+});
+
+window.addEventListener('focus', function() {
+    // Window gained focus, resume background audio if it was playing
+    if (soundEnabled && wasBackgroundPlaying) {
+        audioElements.background.play().catch(err => {
+            console.log("Failed to resume background audio on focus: " + err.message);
+        });
+        wasBackgroundPlaying = false;
+    }
+});
+
+// Also handle game pause state (if your game has a pause menu)
+// Add this if you have a pause function in your game
+const originalPauseGame = window.pauseGame || function() {};
+window.pauseGame = function() {
+    // Call original pause function if it exists
+    if (typeof originalPauseGame === 'function') {
+        originalPauseGame();
+    }
+    
+    // Pause background audio
+    if (audioElements.background && !audioElements.background.paused) {
+        wasBackgroundPlaying = true;
+        audioElements.background.pause();
+    }
+};
+
+// Add this if you have an unpause function in your game
+const originalUnpauseGame = window.unpauseGame || function() {};
+window.unpauseGame = function() {
+    // Call original unpause function if it exists
+    if (typeof originalUnpauseGame === 'function') {
+        originalUnpauseGame();
+    }
+    
+    // Resume background audio if it was playing
+    if (soundEnabled && wasBackgroundPlaying) {
+        audioElements.background.play().catch(err => {
+            console.log("Failed to resume background audio on unpause: " + err.message);
+        });
+        wasBackgroundPlaying = false;
+    }
+};
