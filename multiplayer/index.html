@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<!-- Add these meta tags to the <head> section of your index.html file     <meta name="viewport" content="width=device-width, initial-scale=1.0"> //-->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="theme-color" content="#333333">	
     <title>Tank Simulator</title>
     <style>
         body {
@@ -356,5 +362,7 @@
         // Start the game by preloading images
         preloadImages();
     </script>
+	<!-- Add these script tags at the end of your body -->
+	<script src="mobile-controls.js"></script>	
 </body>
 </html>

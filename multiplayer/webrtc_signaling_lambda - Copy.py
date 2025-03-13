@@ -81,7 +81,7 @@ def handle_connect(event):
         logger.info(f"Connection from origin: {origin}")
     
     try:
-        # Store connection information - using connection_id as the primary key
+        # Store connection information
         connections_table.put_item(
             Item={
                 'connection_id': connection_id,
@@ -162,8 +162,6 @@ def handle_message(event):
             return handle_signaling_message(connection_id, message_body)
         elif message_type == 'ping':
             # Handle simple ping messages for debugging
-            # Send pong response back to the client
-            send_to_connection(connection_id, {"type": "pong", "timestamp": datetime.now().isoformat()})
             return {'statusCode': 200, 'body': 'pong'}
         else:
             logger.warning(f"Unknown message type: {message_type} from {connection_id}")
