@@ -584,12 +584,12 @@ function gameLoop(timestamp) {
     const deltaTime = (timestamp - lastFrameTime) / 1000; // Convert to seconds
     lastFrameTime = timestamp;
     
-    // Clear canvas
-    gameCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    // Clear canvas - using actual canvas dimensions instead of constants
+    gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
     
-    // Calculate viewport offset
-    const offsetX = Math.max(0, Math.min(WORLD_WIDTH - CANVAS_WIDTH, player.x - CANVAS_WIDTH / 2));
-    const offsetY = Math.max(0, Math.min(WORLD_HEIGHT - CANVAS_HEIGHT, player.y - CANVAS_HEIGHT / 2));
+    // Calculate viewport offset - using actual canvas dimensions for centering
+    const offsetX = Math.max(0, Math.min(WORLD_WIDTH - gameCanvas.width, player.x - gameCanvas.width / 2));
+    const offsetY = Math.max(0, Math.min(WORLD_HEIGHT - gameCanvas.height, player.y - gameCanvas.height / 2));
     
     // Update game objects
     if (gameRunning) {

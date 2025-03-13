@@ -1,5 +1,44 @@
 // Mobile Controls for Tank Game
 // Add this to your game.js file or create a new mobile-controls.js file and include it
+// Adjust game canvas size to fit mobile screens properly
+function adjustCanvasForMobile() {
+    // Only run on mobile devices
+    if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        return;
+    }
+    
+    const gameCanvas = document.getElementById('gameCanvas');
+    if (!gameCanvas) return;
+    
+    // Check if device is in landscape mode
+    const isLandscape = window.innerWidth > window.innerHeight;
+    if (!isLandscape) return;
+    
+    // Get screen dimensions
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // Calculate a safe bottom margin (10% of screen height for games)
+    // This ensures controls don't overlap the tank at the bottom
+    const safeMargin = Math.floor(screenHeight * 0.12); // 12% margin
+    
+    // Calculate new canvas dimensions
+    // Keep width the same, reduce height by the margin
+    const newHeight = screenHeight - safeMargin;
+    
+    // Update canvas size
+    if (gameCanvas.height > newHeight) {
+        gameCanvas.height = newHeight;
+        
+        // If game has CANVAS_HEIGHT constant, override it (safer approach than modifying code)
+        if (typeof CANVAS_HEIGHT !== 'undefined') {
+            window.CANVAS_HEIGHT = newHeight;
+        }
+    }
+    
+    console.log("Canvas adjusted for mobile: " + gameCanvas.width + "x" + gameCanvas.height);
+}
+
 
 // Create and initialize mobile controls
 function initMobileControls() {
@@ -337,5 +376,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(checkPlayer);
             }
         }, 100);
+    }
+});
+
+// Call the function when the page loads and when orientation changes
+document.addEventListener('DOMContentLoaded', adjustCanvasForMobile);
+window.addEventListener('orientationchange', function() {
+    // Wait a moment for the orientation change to complete
+    setTimeout(adjustCanvasForMobile, 300);
+});
+window.addEventListener('resize', function() {
+    // Only run on mobile devices to avoid unnecessary adjustments on desktop
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        setTimeout(adjustCanvasForMobile, 300);
     }
 });
