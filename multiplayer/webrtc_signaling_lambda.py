@@ -166,52 +166,34 @@ def handle_message(event):
         return {'statusCode': 500, 'body': json.dumps({'error': str(e)})}
 
 def handle_join(connection_id, message):
-    """Handle a player joining a game room with automatic room assignment"""
+    """Handle a player joining a game room - always use a single persistent room"""
     player_id = message.get('playerId')
     
-    logger.info(f"Player {player_id} requesting to join a game")
+    logger.info(f"Player {player_id} requesting to join the main game room")
     
     if not player_id:
         logger.warning(f"Join attempt without player ID from connection: {connection_id}")
         return {'statusCode': 400, 'body': 'Player ID is required'}
     
     try:
-        # Find active rooms with space
-        room_name = None
-        response = rooms_table.scan()
+        # Always use the same permanent room name
+        permanent_room_name = "tank-simulator-main-room"
         
-        # First look for any existing room with less than 5 players
-        for room in response.get('Items', []):
-            room_players = room.get('players', [])
-            
-            # Get counts of active players in the room by checking connections table
-            active_players = []
-            for pid in room_players:
-                conn_response = connections_table.scan(
-                    FilterExpression='player_id = :pid',
-                    ExpressionAttributeValues={':pid': pid}
-                )
-                if conn_response.get('Items'):
-                    active_players.append(pid)
-            
-            # If this room has space (less than 5 active players), join it
-            if len(active_players) > 0 and len(active_players) < 5:
-                room_name = room['room_name']
-                logger.info(f"Found active room with space: {room_name}, current players: {len(active_players)}")
-                break
+        # Check if the permanent room exists, if not create it
+        response = rooms_table.get_item(Key={'room_name': permanent_room_name})
         
-        # If no suitable room found, create a new one with a unique ID
-        if not room_name:
-            room_name = f"game-{datetime.now().strftime('%Y%m%d%H%M%S')}-{player_id[:8]}"
-            logger.info(f"Creating new room: {room_name} (no suitable existing rooms found)")
+        if 'Item' not in response:
+            logger.info(f"Creating permanent room: {permanent_room_name}")
             
             rooms_table.put_item(
                 Item={
-                    'room_name': room_name,
+                    'room_name': permanent_room_name,
                     'players': [],
                     'created_at': datetime.now().isoformat()
                 }
             )
+        else:
+            logger.info(f"Using existing permanent room: {permanent_room_name}")
         
         # Update connection record with player info and room
         connections_table.update_item(
@@ -219,19 +201,39 @@ def handle_join(connection_id, message):
             UpdateExpression='SET player_id = :pid, room = :room',
             ExpressionAttributeValues={
                 ':pid': player_id,
-                ':room': room_name
+                ':room': permanent_room_name
             }
         )
         
         # Get the current player list for the room
-        response = rooms_table.get_item(Key={'room_name': room_name})
+        response = rooms_table.get_item(Key={'room_name': permanent_room_name})
         players = response['Item'].get('players', []) if 'Item' in response else []
         
-        # Add player to room if not already there
+        # Clean up the player list by checking which players are still connected
+        active_players = []
+        for pid in players:
+            conn_response = connections_table.scan(
+                FilterExpression='player_id = :pid',
+                ExpressionAttributeValues={':pid': pid}
+            )
+            if conn_response.get('Items'):
+                active_players.append(pid)
+        
+        # Update the room with only active players
+        if active_players != players:
+            logger.info(f"Cleaning up player list. Was: {players}, Now: {active_players}")
+            players = active_players
+            rooms_table.update_item(
+                Key={'room_name': permanent_room_name},
+                UpdateExpression='SET players = :players',
+                ExpressionAttributeValues={':players': players}
+            )
+        
+        # Add the current player if not already in the list
         if player_id not in players:
             players.append(player_id)
             rooms_table.update_item(
-                Key={'room_name': room_name},
+                Key={'room_name': permanent_room_name},
                 UpdateExpression='SET players = :players',
                 ExpressionAttributeValues={':players': players}
             )
@@ -244,7 +246,7 @@ def handle_join(connection_id, message):
         })
         
         # Notify other players about the new player
-        player_connections = get_player_connections(room_name)
+        player_connections = get_player_connections(permanent_room_name)
         for pid, conn_id in player_connections.items():
             if pid != player_id:
                 send_to_connection(conn_id, {
@@ -252,7 +254,7 @@ def handle_join(connection_id, message):
                     'playerId': player_id
                 })
         
-        logger.info(f"Player {player_id} successfully joined room {room_name}")
+        logger.info(f"Player {player_id} successfully joined permanent room with {len(existing_players)} existing players")
         return {'statusCode': 200, 'body': 'Joined room'}
     
     except Exception as e:

@@ -21,7 +21,7 @@ class MultiplayerManager {
         this.setupConnection();
     }
     
-	setupConnection() {
+    setupConnection() {
         try {
             console.log("Connecting to signaling server:", this.signalServer);
             this.socket = new WebSocket(this.signalServer);
@@ -39,407 +39,384 @@ class MultiplayerManager {
                 
                 // Update tracking
                 trackEvent("multiplayer_connected");
+                
+                // Update connection status UI if function exists
+                if (typeof updateConnectionStatus === 'function') {
+                    updateConnectionStatus("Connected to server, joining main room...", "#FFC107");
+                }
             };
-			
-			this.socket.onmessage = (event) => {
-				console.log("Received message from server:", event.data);
-				try {
-					const message = JSON.parse(event.data);
-					
-					switch (message.type) {
-						case "room_info":
-							console.log("Handling room info:", message);
-							this.handleRoomInfo(message);
-							break;
-						case "new_player":
-							console.log("Handling new player:", message);
-							this.handleNewPlayer(message);
-							break;
-						case "player_left":
-							console.log("Handling player left:", message);
-							this.handlePlayerLeft(message);
-							break;
-						case "offer":
-							console.log("Handling offer from:", message.from);
-							this.handleOffer(message);
-							break;
-						case "answer":
-							console.log("Handling answer from:", message.from);
-							this.handleAnswer(message);
-							break;
-						case "ice_candidate":
-							console.log("Handling ICE candidate from:", message.from);
-							this.handleIceCandidate(message);
-							break;
-						default:
-							console.warn("Unknown message type:", message.type);
-					}
-				} catch (parseError) {
-					console.error("Error parsing message:", parseError, "Raw message:", event.data);
-				}
-			};
-			
-			this.socket.onclose = (event) => {
-				console.log("Disconnected from signaling server", 
-							"Code:", event.code, 
-							"Reason:", event.reason || "No reason provided", 
-							"Clean:", event.wasClean);
-				
-				// Check if we should try to reconnect
-				if (this.connectionAttempts < 5) {
-					// Exponential backoff for reconnection attempts
-					const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
-					this.connectionAttempts = (this.connectionAttempts || 0) + 1;
-					console.log(`Attempting reconnection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
-					setTimeout(() => this.setupConnection(), delay);
-				} else {
-					console.log("Max reconnection attempts reached. Please refresh the page to try again.");
-					alert("Could not connect to multiplayer server. Please try again later.");
-				}
-			};
-			
-			this.socket.onerror = (error) => {
-				console.error("WebSocket error:", error);
-				console.log("Browser:", navigator.userAgent);
-				console.log("Current location:", window.location.href);
-				
-				// Check for common issues
-				if (window.location.protocol === "http:" && this.signalServer.startsWith("wss:")) {
-					console.warn("Potential mixed content issue: Trying to connect to secure WebSocket from non-secure page");
-				}
-			};
-		} catch (e) {
-			console.error("Error setting up WebSocket connection:", e);
-			// Initialize reconnection counter if not already set
-			this.connectionAttempts = (this.connectionAttempts || 0) + 1;
-			
-			if (this.connectionAttempts < 5) {
-				const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
-				console.log(`Will retry connection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
-				setTimeout(() => this.setupConnection(), delay);
-			} else {
-				console.log("Max connection attempts reached");
-				alert("Failed to connect to multiplayer server. Please try again later.");
-			}
-		}
-	}
+this.socket.onmessage = (event) => {
+                console.log("Received message from server:", event.data);
+                try {
+                    const message = JSON.parse(event.data);
+                    
+                    // Log detailed info about incoming messages
+                    if (message.type === "room_info") {
+                        console.log(`Room info received: ${message.players.length} players already in room`);
+                        if (typeof updateConnectionStatus === 'function') {
+                            updateConnectionStatus("Connected to main room", "#4CAF50");
+                        }
+                    } else if (message.type === "new_player") {
+                        console.log(`New player notification: ${message.playerId}`);
+                    }
+                    
+                    switch (message.type) {
+                        case "room_info":
+                            console.log("Handling room info:", message);
+                            this.handleRoomInfo(message);
+                            break;
+                        case "new_player":
+                            console.log("Handling new player:", message);
+                            this.handleNewPlayer(message);
+                            break;
+                        case "player_left":
+                            console.log("Handling player left:", message);
+                            this.handlePlayerLeft(message);
+                            break;
+                        case "offer":
+                            console.log("Handling offer from:", message.from);
+                            this.handleOffer(message);
+                            break;
+                        case "answer":
+                            console.log("Handling answer from:", message.from);
+                            this.handleAnswer(message);
+                            break;
+                        case "ice_candidate":
+                            console.log("Handling ICE candidate from:", message.from);
+                            this.handleIceCandidate(message);
+                            break;
+                        default:
+                            console.warn("Unknown message type:", message.type);
+                    }
+                } catch (parseError) {
+                    console.error("Error parsing message:", parseError, "Raw message:", event.data);
+                }
+            };
+this.socket.onclose = (event) => {
+                console.log("Disconnected from signaling server", 
+                            "Code:", event.code, 
+                            "Reason:", event.reason || "No reason provided", 
+                            "Clean:", event.wasClean);
+                
+                if (typeof updateConnectionStatus === 'function') {
+                    updateConnectionStatus("Disconnected - trying to reconnect...", "#F44336");
+                }
+                
+                // Check if we should try to reconnect
+                if (this.connectionAttempts < 5) {
+                    // Exponential backoff for reconnection attempts
+                    const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
+                    this.connectionAttempts = (this.connectionAttempts || 0) + 1;
+                    console.log(`Attempting reconnection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
+                    setTimeout(() => this.setupConnection(), delay);
+                } else {
+                    console.log("Max reconnection attempts reached. Please refresh the page to try again.");
+                    alert("Could not connect to multiplayer server. Please try again later.");
+                }
+            };
+            
+            this.socket.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                console.log("Browser:", navigator.userAgent);
+                console.log("Current location:", window.location.href);
+                
+                if (typeof updateConnectionStatus === 'function') {
+                    updateConnectionStatus("Connection error - check console", "#F44336");
+                }
+                
+                // Check for common issues
+                if (window.location.protocol === "http:" && this.signalServer.startsWith("wss:")) {
+                    console.warn("Potential mixed content issue: Trying to connect to secure WebSocket from non-secure page");
+                }
+            };
+        } catch (e) {
+            console.error("Error setting up WebSocket connection:", e);
+            // Initialize reconnection counter if not already set
+            this.connectionAttempts = (this.connectionAttempts || 0) + 1;
+            
+            if (this.connectionAttempts < 5) {
+                const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
+                console.log(`Will retry connection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
+                setTimeout(() => this.setupConnection(), delay);
+            } else {
+                console.log("Max connection attempts reached");
+                alert("Failed to connect to multiplayer server. Please try again later.");
+            }
+        }
+    }
+    
     generateUniqueId() {
         return Math.random().toString(36).substring(2, 15) + 
                Math.random().toString(36).substring(2, 15);
     }
-	
-// Add these methods to the MultiplayerManager class
-    
+
 handleRoomInfo(message) {
-    const existingPlayers = message.players;
-    const playerIndex = existingPlayers.length;
-    
-    // Set local player's index and color
-    this.game.player.playerIndex = playerIndex;
-    this.game.player.color = this.playerColors[playerIndex];
-    
-    // Create peer connections for each existing player
-    existingPlayers.forEach(playerId => {
-        this.createPeerConnection(playerId, true);
-    });
-    
-    // Update the number of AI enemies (remove one for each human player)
-    this.updateAIEnemies(existingPlayers.length + 1);
-}
-
-handleNewPlayer(message) {
-    const newPlayerId = message.playerId;
-    
-    // Create a new peer connection for the new player
-    this.createPeerConnection(newPlayerId, false);
-    
-    // Update the number of AI enemies
-    const humanPlayers = Object.keys(this.peers).length + 1;
-    this.updateAIEnemies(humanPlayers);
-}
-
-handlePlayerLeft(message) {
-    const playerId = message.playerId;
-    
-    // Remove the peer connection
-    if (this.peers[playerId]) {
-        this.peers[playerId].close();
-        delete this.peers[playerId];
-    }
-    
-    // Remove the player
-    if (this.players[playerId]) {
-        delete this.players[playerId];
-    }
-    
-    // Update the number of AI enemies
-    const humanPlayers = Object.keys(this.peers).length + 1;
-    this.updateAIEnemies(humanPlayers);
-}
-
-updateAIEnemies(humanPlayerCount) {
-    // Calculate how many AI enemies should be active
-    const aiEnemiesNeeded = Math.max(0, 5 - humanPlayerCount);
-    
-    // If we need to add AI enemies
-    while (enemies.filter(e => e.isAI).length < aiEnemiesNeeded) {
-        createAIEnemy();
-    }
-    
-    // If we need to remove AI enemies
-    if (enemies.filter(e => e.isAI).length > aiEnemiesNeeded) {
-        // Find AI enemies and mark the excess ones for removal
-        const aiEnemies = enemies.filter(e => e.isAI);
-        const toRemove = aiEnemies.slice(0, aiEnemies.length - aiEnemiesNeeded);
+        const existingPlayers = message.players;
+        const playerIndex = existingPlayers.length;
         
-        // Remove the marked enemies
-        toRemove.forEach(enemy => {
-            const index = enemies.indexOf(enemy);
-            if (index !== -1) {
-                enemies.splice(index, 1);
-            }
-        });
-    }
-}
-
-// Add these methods to the MultiplayerManager class
-    
-handleRoomInfo(message) {
-    const existingPlayers = message.players;
-    const playerIndex = existingPlayers.length;
-    
-    // Set local player's index and color
-    this.game.player.playerIndex = playerIndex;
-    this.game.player.color = this.playerColors[playerIndex];
-    
-    // Create peer connections for each existing player
-    existingPlayers.forEach(playerId => {
-        this.createPeerConnection(playerId, true);
-    });
-    
-    // Update the number of AI enemies (remove one for each human player)
-    this.updateAIEnemies(existingPlayers.length + 1);
-}
-
-handleNewPlayer(message) {
-    const newPlayerId = message.playerId;
-    
-    // Create a new peer connection for the new player
-    this.createPeerConnection(newPlayerId, false);
-    
-    // Update the number of AI enemies
-    const humanPlayers = Object.keys(this.peers).length + 1;
-    this.updateAIEnemies(humanPlayers);
-}
-
-handlePlayerLeft(message) {
-    const playerId = message.playerId;
-    
-    // Remove the peer connection
-    if (this.peers[playerId]) {
-        this.peers[playerId].close();
-        delete this.peers[playerId];
-    }
-    
-    // Remove the player
-    if (this.players[playerId]) {
-        delete this.players[playerId];
-    }
-    
-    // Update the number of AI enemies
-    const humanPlayers = Object.keys(this.peers).length + 1;
-    this.updateAIEnemies(humanPlayers);
-}
-
-updateAIEnemies(humanPlayerCount) {
-    // Calculate how many AI enemies should be active
-    const aiEnemiesNeeded = Math.max(0, 5 - humanPlayerCount);
-    
-    // If we need to add AI enemies
-    while (enemies.filter(e => e.isAI).length < aiEnemiesNeeded) {
-        createAIEnemy();
-    }
-    
-    // If we need to remove AI enemies
-    if (enemies.filter(e => e.isAI).length > aiEnemiesNeeded) {
-        // Find AI enemies and mark the excess ones for removal
-        const aiEnemies = enemies.filter(e => e.isAI);
-        const toRemove = aiEnemies.slice(0, aiEnemies.length - aiEnemiesNeeded);
+        // Set local player's index and color
+        this.game.player.playerIndex = playerIndex;
+        this.game.player.color = this.playerColors[playerIndex];
         
-        // Remove the marked enemies
-        toRemove.forEach(enemy => {
-            const index = enemies.indexOf(enemy);
-            if (index !== -1) {
-                enemies.splice(index, 1);
-            }
-        });
-    }
-}
-
-// Add these methods to the MultiplayerManager class
-
-createPeerConnection(remotePlayerId, isInitiator) {
-    try {
-        const peerConnection = new RTCPeerConnection({
-            iceServers: [
-                { urls: "stun:stun.l.google.com:19302" },
-                { urls: "stun:stun1.l.google.com:19302" }
-            ]
+        // Create peer connections for each existing player
+        existingPlayers.forEach(playerId => {
+            this.createPeerConnection(playerId, true);
         });
         
-        // Store the peer connection
-        this.peers[remotePlayerId] = peerConnection;
-        this.pendingIceCandidates[remotePlayerId] = [];
+        // Update the number of AI enemies (remove one for each human player)
+        this.updateAIEnemies(existingPlayers.length + 1);
         
-        // Setup data channel
-        if (isInitiator) {
-            const dataChannel = peerConnection.createDataChannel("game");
-            this.setupDataChannel(dataChannel, remotePlayerId);
+        // Show notification for current player if function exists
+        if (typeof showPlayerJoinNotification === 'function') {
+            setTimeout(() => {
+                showPlayerJoinNotification(this.game.player.playerIndex);
+                console.log(`You (Player ${this.game.player.playerIndex + 1}) have joined the game`);
+            }, 500);
             
-            // Create and send offer
-            peerConnection.createOffer()
-                .then(offer => peerConnection.setLocalDescription(offer))
-                .then(() => {
+            // Show notifications for existing players
+            existingPlayers.forEach((playerId, i) => {
+                setTimeout(() => {
+                    for (const pid in this.players) {
+                        if (pid === playerId && this.players[pid]) {
+                            const playerIndex = this.players[pid].playerIndex;
+                            showPlayerJoinNotification(playerIndex);
+                            console.log(`Player ${playerIndex + 1} (${playerId}) is already in the game`);
+                            break;
+                        }
+                    }
+                }, 1000 + (i * 500));
+            });
+        }
+    }
+
+    handleNewPlayer(message) {
+        const newPlayerId = message.playerId;
+        
+        // Create a new peer connection for the new player
+        this.createPeerConnection(newPlayerId, false);
+        
+        // Update the number of AI enemies
+        const humanPlayers = Object.keys(this.peers).length + 1;
+        this.updateAIEnemies(humanPlayers);
+        
+        // Show notification for new player if function exists
+        if (typeof showPlayerJoinNotification === 'function') {
+            setTimeout(() => {
+                // Find the player's index based on their ID
+                for (const pid in this.players) {
+                    if (pid === newPlayerId && this.players[pid]) {
+                        const playerIndex = this.players[pid].playerIndex;
+                        showPlayerJoinNotification(playerIndex);
+                        console.log(`Player ${playerIndex + 1} (${newPlayerId}) has joined the game`);
+                        break;
+                    }
+                }
+            }, 500);
+        }
+    }
+
+    handlePlayerLeft(message) {
+        const playerId = message.playerId;
+        
+        // Remove the peer connection
+        if (this.peers[playerId]) {
+            this.peers[playerId].close();
+            delete this.peers[playerId];
+        }
+        
+        // Remove the player
+        if (this.players[playerId]) {
+            delete this.players[playerId];
+        }
+        
+        // Update the number of AI enemies
+        const humanPlayers = Object.keys(this.peers).length + 1;
+        this.updateAIEnemies(humanPlayers);
+    }
+
+    updateAIEnemies(humanPlayerCount) {
+        // Calculate how many AI enemies should be active
+        const aiEnemiesNeeded = Math.max(0, 5 - humanPlayerCount);
+        
+        // If we need to add AI enemies
+        while (enemies.filter(e => e.isAI).length < aiEnemiesNeeded) {
+            createAIEnemy();
+        }
+        
+        // If we need to remove AI enemies
+        if (enemies.filter(e => e.isAI).length > aiEnemiesNeeded) {
+            // Find AI enemies and mark the excess ones for removal
+            const aiEnemies = enemies.filter(e => e.isAI);
+            const toRemove = aiEnemies.slice(0, aiEnemies.length - aiEnemiesNeeded);
+            
+            // Remove the marked enemies
+            toRemove.forEach(enemy => {
+                const index = enemies.indexOf(enemy);
+                if (index !== -1) {
+                    enemies.splice(index, 1);
+                }
+            });
+        }
+    }
+createPeerConnection(remotePlayerId, isInitiator) {
+        try {
+            console.log(`Creating peer connection with ${remotePlayerId}, initiator: ${isInitiator}`);
+            
+            const peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: "stun:stun.l.google.com:19302" },
+                    { urls: "stun:stun1.l.google.com:19302" }
+                ]
+            });
+            
+            // Store the peer connection
+            this.peers[remotePlayerId] = peerConnection;
+            this.pendingIceCandidates[remotePlayerId] = [];
+            
+            // Setup data channel
+            if (isInitiator) {
+                const dataChannel = peerConnection.createDataChannel("game");
+                this.setupDataChannel(dataChannel, remotePlayerId);
+                
+                // Create and send offer
+                peerConnection.createOffer()
+                    .then(offer => peerConnection.setLocalDescription(offer))
+                    .then(() => {
+                        this.socket.send(JSON.stringify({
+                            type: "offer",
+                            offer: peerConnection.localDescription,
+                            to: remotePlayerId,
+                            from: this.localPlayerId
+                        }));
+                    })
+                    .catch(error => console.error("Error creating offer:", error));
+            } else {
+                // Handle data channel for non-initiator
+                peerConnection.ondatachannel = (event) => {
+                    this.setupDataChannel(event.channel, remotePlayerId);
+                };
+            }
+            
+            // ICE candidate handling
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
                     this.socket.send(JSON.stringify({
-                        type: "offer",
-                        offer: peerConnection.localDescription,
+                        type: "ice_candidate",
+                        candidate: event.candidate,
                         to: remotePlayerId,
                         from: this.localPlayerId
                     }));
-                })
-                .catch(error => console.error("Error creating offer:", error));
-        } else {
-            // Handle data channel for non-initiator
-            peerConnection.ondatachannel = (event) => {
-                this.setupDataChannel(event.channel, remotePlayerId);
+                }
             };
+            
+            // Connection state change
+            peerConnection.onconnectionstatechange = () => {
+                console.log(`Peer connection state with ${remotePlayerId}: ${peerConnection.connectionState}`);
+                
+                if (peerConnection.connectionState === 'connected') {
+                    console.log(`Connected to player ${remotePlayerId}`);
+                    if (typeof updateConnectionStatus === 'function') {
+                        updateConnectionStatus("Connected to all players", "#4CAF50");
+                    }
+                } else if (peerConnection.connectionState === 'failed') {
+                    console.error(`Connection to player ${remotePlayerId} failed`);
+                    if (typeof updateConnectionStatus === 'function') {
+                        updateConnectionStatus("Some player connections failed", "#FF9800");
+                    }
+                }
+            };
+            
+            // ICE connection state monitoring
+            peerConnection.oniceconnectionstatechange = () => {
+                console.log(`ICE connection state with ${remotePlayerId}: ${peerConnection.iceConnectionState}`);
+            };
+            
+            return peerConnection;
+        } catch (e) {
+            console.error("Error creating peer connection:", e);
+            return null;
         }
+    }
+
+    setupDataChannel(dataChannel, remotePlayerId) {
+        dataChannel.onopen = () => {
+            console.log(`Data channel to ${remotePlayerId} opened`);
+            this.connectionEstablished = true;
+        };
         
-        // ICE candidate handling
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
+        dataChannel.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Handle different message types
+                switch (data.type) {
+                    case "player_update":
+                        this.updateRemotePlayer(remotePlayerId, data.playerData);
+                        break;
+                    case "projectile_fired":
+                        this.handleRemoteProjectile(data.projectile);
+                        break;
+                    case "player_hit":
+                        this.handleRemoteHit(data.hitData);
+                        break;
+                }
+            } catch (e) {
+                console.error("Error processing message:", e);
+            }
+        };
+        
+        dataChannel.onclose = () => {
+            console.log(`Data channel to ${remotePlayerId} closed`);
+        };
+        
+        dataChannel.onerror = (error) => {
+            console.error(`Data channel error for ${remotePlayerId}:`, error);
+        };
+        
+        // Store the data channel
+        if (!this.players[remotePlayerId]) {
+            // Get next available index
+            const playerIndices = Object.values(this.players)
+                .map(player => player.playerIndex)
+                .concat(this.game.player.playerIndex);
+            let nextIndex = 0;
+            while (playerIndices.includes(nextIndex) && nextIndex < this.maxPlayers) {
+                nextIndex++;
+            }
+            
+            this.players[remotePlayerId] = {
+                playerId: remotePlayerId,
+                dataChannel: dataChannel,
+                playerIndex: nextIndex,
+                color: this.playerColors[nextIndex],
+                x: 0,
+                y: 0,
+                rotation: 0,
+                health: 1000,
+                currentWeapon: "Cannon"
+            };
+        } else {
+            this.players[remotePlayerId].dataChannel = dataChannel;
+        }
+    }
+handleOffer(message) {
+        const remotePlayerId = message.from;
+        const peerConnection = this.peers[remotePlayerId] || 
+                               this.createPeerConnection(remotePlayerId, false);
+        
+        if (!peerConnection) return;
+        
+        peerConnection.setRemoteDescription(new RTCSessionDescription(message.offer))
+            .then(() => peerConnection.createAnswer())
+            .then(answer => peerConnection.setLocalDescription(answer))
+            .then(() => {
                 this.socket.send(JSON.stringify({
-                    type: "ice_candidate",
-                    candidate: event.candidate,
+                    type: "answer",
+                    answer: peerConnection.localDescription,
                     to: remotePlayerId,
                     from: this.localPlayerId
                 }));
-            }
-        };
-        
-        // Connection state change
-        peerConnection.onconnectionstatechange = () => {
-            if (peerConnection.connectionState === 'connected') {
-                console.log(`Connected to player ${remotePlayerId}`);
-            }
-        };
-        
-        return peerConnection;
-    } catch (e) {
-        console.error("Error creating peer connection:", e);
-        return null;
-    }
-}
-
-setupDataChannel(dataChannel, remotePlayerId) {
-    dataChannel.onopen = () => {
-        console.log(`Data channel to ${remotePlayerId} opened`);
-        this.connectionEstablished = true;
-    };
-    
-    dataChannel.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            
-            // Handle different message types
-            switch (data.type) {
-                case "player_update":
-                    this.updateRemotePlayer(remotePlayerId, data.playerData);
-                    break;
-                case "projectile_fired":
-                    this.handleRemoteProjectile(data.projectile);
-                    break;
-                case "player_hit":
-                    this.handleRemoteHit(data.hitData);
-                    break;
-            }
-        } catch (e) {
-            console.error("Error processing message:", e);
-        }
-    };
-    
-    dataChannel.onclose = () => {
-        console.log(`Data channel to ${remotePlayerId} closed`);
-    };
-    
-    dataChannel.onerror = (error) => {
-        console.error(`Data channel error for ${remotePlayerId}:`, error);
-    };
-    
-    // Store the data channel
-    if (!this.players[remotePlayerId]) {
-        // Get next available index
-        const playerIndices = Object.values(this.players)
-            .map(player => player.playerIndex)
-            .concat(this.game.player.playerIndex);
-        let nextIndex = 0;
-        while (playerIndices.includes(nextIndex) && nextIndex < this.maxPlayers) {
-            nextIndex++;
-        }
-        
-        this.players[remotePlayerId] = {
-            playerId: remotePlayerId,
-            dataChannel: dataChannel,
-            playerIndex: nextIndex,
-            color: this.playerColors[nextIndex],
-            x: 0,
-            y: 0,
-            rotation: 0,
-            health: 1000,
-            currentWeapon: "Cannon"
-        };
-    } else {
-        this.players[remotePlayerId].dataChannel = dataChannel;
-    }
-}
-
-// Add these methods to the MultiplayerManager class
-
-handleOffer(message) {
-    const remotePlayerId = message.from;
-    const peerConnection = this.peers[remotePlayerId] || 
-                           this.createPeerConnection(remotePlayerId, false);
-    
-    if (!peerConnection) return;
-    
-    peerConnection.setRemoteDescription(new RTCSessionDescription(message.offer))
-        .then(() => peerConnection.createAnswer())
-        .then(answer => peerConnection.setLocalDescription(answer))
-        .then(() => {
-            this.socket.send(JSON.stringify({
-                type: "answer",
-                answer: peerConnection.localDescription,
-                to: remotePlayerId,
-                from: this.localPlayerId
-            }));
-            
-            // Process any pending ICE candidates
-            this.pendingIceCandidates[remotePlayerId].forEach(candidate => {
-                peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-                    .catch(error => console.error("Error adding pending ICE candidate:", error));
-            });
-            this.pendingIceCandidates[remotePlayerId] = [];
-        })
-        .catch(error => console.error("Error handling offer:", error));
-}
-
-handleAnswer(message) {
-    const remotePlayerId = message.from;
-    const peerConnection = this.peers[remotePlayerId];
-    
-    if (peerConnection) {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(message.answer))
-            .then(() => {
+                
                 // Process any pending ICE candidates
                 this.pendingIceCandidates[remotePlayerId].forEach(candidate => {
                     peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
@@ -447,131 +424,144 @@ handleAnswer(message) {
                 });
                 this.pendingIceCandidates[remotePlayerId] = [];
             })
-            .catch(error => console.error("Error handling answer:", error));
+            .catch(error => console.error("Error handling offer:", error));
     }
-}
 
-handleIceCandidate(message) {
-    const remotePlayerId = message.from;
-    const peerConnection = this.peers[remotePlayerId];
-    
-    if (peerConnection && peerConnection.remoteDescription) {
-        peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
-            .catch(error => console.error("Error adding ICE candidate:", error));
-    } else if (peerConnection) {
-        // Store the ICE candidate to be added later
-        this.pendingIceCandidates[remotePlayerId].push(message.candidate);
+    handleAnswer(message) {
+        const remotePlayerId = message.from;
+        const peerConnection = this.peers[remotePlayerId];
+        
+        if (peerConnection) {
+            peerConnection.setRemoteDescription(new RTCSessionDescription(message.answer))
+                .then(() => {
+                    // Process any pending ICE candidates
+                    this.pendingIceCandidates[remotePlayerId].forEach(candidate => {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                            .catch(error => console.error("Error adding pending ICE candidate:", error));
+                    });
+                    this.pendingIceCandidates[remotePlayerId] = [];
+                })
+                .catch(error => console.error("Error handling answer:", error));
+        }
     }
-}
 
-updateRemotePlayer(playerId, playerData) {
-    if (this.players[playerId]) {
-        Object.assign(this.players[playerId], playerData);
+    handleIceCandidate(message) {
+        const remotePlayerId = message.from;
+        const peerConnection = this.peers[remotePlayerId];
+        
+        if (peerConnection && peerConnection.remoteDescription) {
+            peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
+                .catch(error => console.error("Error adding ICE candidate:", error));
+        } else if (peerConnection) {
+            // Store the ICE candidate to be added later
+            this.pendingIceCandidates[remotePlayerId].push(message.candidate);
+        }
     }
-}
 
-handleRemoteProjectile(projectileData) {
-    // Create a new projectile from the remote data
-    const projectile = new Projectile(
-        projectileData.x,
-        projectileData.y,
-        projectileData.rotation,
-        weaponFromName(projectileData.weaponName),
-        false, // Not a player projectile (from local player)
-        projectileData.playerId // ID of the player who fired it
-    );
-    
-    projectiles.push(projectile);
-}
-
-handleRemoteHit(hitData) {
-    // Handle when a remote player reports they hit something
-    if (hitData.targetType === "player" && hitData.targetId === this.localPlayerId) {
-        player.takeDamage(hitData.damage);
+    updateRemotePlayer(playerId, playerData) {
+        if (this.players[playerId]) {
+            Object.assign(this.players[playerId], playerData);
+        }
     }
-}
 
-// Add these methods to the MultiplayerManager class
+    handleRemoteProjectile(projectileData) {
+        // Create a new projectile from the remote data
+        const projectile = new Projectile(
+            projectileData.x,
+            projectileData.y,
+            projectileData.rotation,
+            weaponFromName(projectileData.weaponName),
+            false, // Not a player projectile (from local player)
+            projectileData.playerId // ID of the player who fired it
+        );
+        
+        projectiles.push(projectile);
+    }
 
+    handleRemoteHit(hitData) {
+        // Handle when a remote player reports they hit something
+        if (hitData.targetType === "player" && hitData.targetId === this.localPlayerId) {
+            player.takeDamage(hitData.damage);
+        }
+    }
 broadcastPlayerUpdate() {
-    // Only send updates if connections are established
-    if (!this.connectionEstablished) return;
-    
-    const playerData = {
-        x: player.x,
-        y: player.y,
-        rotation: player.rotation,
-        health: player.health,
-        currentWeapon: player.currentWeapon.name
-    };
-    
-    this.broadcast({
-        type: "player_update",
-        playerData: playerData
-    });
-}
+        // Only send updates if connections are established
+        if (!this.connectionEstablished) return;
+        
+        const playerData = {
+            x: player.x,
+            y: player.y,
+            rotation: player.rotation,
+            health: player.health,
+            currentWeapon: player.currentWeapon.name
+        };
+        
+        this.broadcast({
+            type: "player_update",
+            playerData: playerData
+        });
+    }
 
-broadcastProjectileFired(projectile) {
-    if (!this.connectionEstablished) return;
-    
-    this.broadcast({
-        type: "projectile_fired",
-        projectile: {
-            x: projectile.x,
-            y: projectile.y,
-            rotation: projectile.rotation,
-            weaponName: projectile.weapon.name,
-            playerId: this.localPlayerId
-        }
-    });
-}
+    broadcastProjectileFired(projectile) {
+        if (!this.connectionEstablished) return;
+        
+        this.broadcast({
+            type: "projectile_fired",
+            projectile: {
+                x: projectile.x,
+                y: projectile.y,
+                rotation: projectile.rotation,
+                weaponName: projectile.weapon.name,
+                playerId: this.localPlayerId
+            }
+        });
+    }
 
-broadcastHit(targetType, targetId, damage) {
-    if (!this.connectionEstablished) return;
-    
-    this.broadcast({
-        type: "player_hit",
-        hitData: {
-            targetType: targetType,
-            targetId: targetId,
-            damage: damage
-        }
-    });
-}
+    broadcastHit(targetType, targetId, damage) {
+        if (!this.connectionEstablished) return;
+        
+        this.broadcast({
+            type: "player_hit",
+            hitData: {
+                targetType: targetType,
+                targetId: targetId,
+                damage: damage
+            }
+        });
+    }
 
-broadcast(data) {
-    // Send data to all connected peers
-    for (const playerId in this.players) {
-        const player = this.players[playerId];
-        if (player.dataChannel && player.dataChannel.readyState === "open") {
-            try {
-                player.dataChannel.send(JSON.stringify(data));
-            } catch (e) {
-                console.error("Error sending data:", e);
+    broadcast(data) {
+        // Send data to all connected peers
+        for (const playerId in this.players) {
+            const player = this.players[playerId];
+            if (player.dataChannel && player.dataChannel.readyState === "open") {
+                try {
+                    player.dataChannel.send(JSON.stringify(data));
+                } catch (e) {
+                    console.error("Error sending data:", e);
+                }
             }
         }
     }
-}
 
-// Called on game shutdown or when player leaves
-disconnect() {
-    // Close all peer connections
-    for (const playerId in this.peers) {
-        this.peers[playerId].close();
+    // Called on game shutdown or when player leaves
+    disconnect() {
+        // Close all peer connections
+        for (const playerId in this.peers) {
+            this.peers[playerId].close();
+        }
+        
+        // Close the WebSocket connection
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: "leave",
+                playerId: this.localPlayerId
+            }));
+            this.socket.close();
+        }
+        
+        trackEvent("multiplayer_disconnected");
     }
-    
-    // Close the WebSocket connection
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-        this.socket.send(JSON.stringify({
-            type: "leave",
-            playerId: this.localPlayerId
-        }));
-        this.socket.close();
-    }
-    
-    trackEvent("multiplayer_disconnected");
-}
-	
 }
 
 // Function to update multiplayer UI
@@ -583,15 +573,24 @@ function updateMultiplayerUI() {
     }
 }
 
-// Function to create multiplayer UI
+// Function to create multiplayer UI with connection status
 function createMultiplayerUI() {
     const uiContainer = document.createElement('div');
     uiContainer.id = 'multiplayerUI';
     uiContainer.innerHTML = `
         <span>Players: 1</span>
         <button id="copyLink">Copy Invite Link</button>
+        <div id="connectionStatus">Connecting to server...</div>
     `;
     document.body.appendChild(uiContainer);
+    
+    // Style the connection status
+    const statusElem = document.getElementById('connectionStatus');
+    if (statusElem) {
+        statusElem.style.fontSize = '12px';
+        statusElem.style.marginTop = '5px';
+        statusElem.style.color = '#FFC107'; // Yellow while connecting
+    }
     
     // Copy link functionality with fallback
     document.getElementById('copyLink').addEventListener('click', () => {
@@ -613,7 +612,17 @@ function createMultiplayerUI() {
     });
 }
 
-// Add the fallback copy function right after createMultiplayerUI
+// Helper function to update connection status display
+function updateConnectionStatus(message, color) {
+    const statusElem = document.getElementById('connectionStatus');
+    if (statusElem) {
+        statusElem.textContent = message;
+        statusElem.style.color = color;
+    }
+    console.log(`Connection status: ${message}`);
+}
+
+// Fallback copy function for browsers without clipboard API
 function fallbackCopy(text) {
     // Fallback method using a temporary input element
     const textArea = document.createElement('textarea');
@@ -644,6 +653,47 @@ function fallbackCopy(text) {
         // Last resort: show a manual copy dialog
         prompt('Copy this link to invite friends:', text);
     }
+}
+
+// Player notification function
+function showPlayerJoinNotification(playerIndex) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'player-notification';
+    notification.innerHTML = `Player ${playerIndex + 1} has entered the arena!`;
+    
+    // Style the notification
+    Object.assign(notification.style, {
+        position: 'absolute',
+        top: '120px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        color: '#fff',
+        padding: '10px 20px',
+        borderRadius: '5px',
+        fontWeight: 'bold',
+        zIndex: '1000',
+        animation: 'fadeInOut 3s ease-in-out'
+    });
+    
+    // Create and add the animation
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Add to body and remove after animation
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }
 
 function addMultiplayerStartButton() {
@@ -689,3 +739,16 @@ function initMultiplayer() {
     // Create multiplayer UI
     createMultiplayerUI();
 }
+
+// Initialize error handling for WebRTC
+document.addEventListener("DOMContentLoaded", function() {
+    // Add a global error handler for WebRTC errors
+    window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && event.reason.toString().includes('RTCPeerConnection')) {
+            console.error('WebRTC error:', event.reason);
+            updateConnectionStatus("WebRTC error - check console", "#F44336");
+        }
+    });
+    
+    console.log("Multiplayer system initialized");
+});
