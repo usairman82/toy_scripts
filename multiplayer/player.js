@@ -1,4 +1,11 @@
 // Complete Player class with multiplayer enhancements
+// Add this helper function if not already defined
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           window.matchMedia("(max-width: 1024px), (pointer: coarse)").matches;
+}
+
+
 class Player {
     constructor(x, y) {
         this.x = x;
@@ -51,66 +58,69 @@ class Player {
         playSound(audioElements.weaponSwitch);
     }
 
-    move(deltaTime) {
-        const moveSpeed = PLAYER_SPEED * deltaTime;
-        
-        // Only move if not destroyed
-        if (this.health <= 0) return;
+	move(deltaTime) {
+		const moveSpeed = PLAYER_SPEED * deltaTime;
+		
+		// Only move if not destroyed
+		if (this.health <= 0) return;
 
-        // Store old position for collision resolution
-        const oldX = this.x;
-        const oldY = this.y;
-        
-        let isMoving = false;
+		// Store old position for collision resolution
+		const oldX = this.x;
+		const oldY = this.y;
+		
+		let isMoving = false;
 
-        if (keysPressed['ArrowUp']) {
-            // Move forward in direction of barrel
-            this.x += Math.sin(this.rotation) * moveSpeed;
-            this.y -= Math.cos(this.rotation) * moveSpeed;
-            isMoving = true;
-        }
-        if (keysPressed['ArrowDown']) {
-            // Move backward in opposite direction of barrel
-            this.x -= Math.sin(this.rotation) * moveSpeed;
-            this.y += Math.cos(this.rotation) * moveSpeed;
-            isMoving = true;
-        }
-        if (keysPressed['ArrowLeft']) {
-            this.rotation -= PLAYER_ROTATION_SPEED;
-        }
-        if (keysPressed['ArrowRight']) {
-            this.rotation += PLAYER_ROTATION_SPEED;
-        }
-        
-        // Handle engine sound
-        if (isMoving && !engineSoundPlaying) {
-            audioElements.engine.play().catch(err => {
-                console.log("Engine audio play interrupted: " + err.message);
-            });
-            engineSoundPlaying = true;
-        } else if (!isMoving && engineSoundPlaying) {
-            audioElements.engine.pause();
-            engineSoundPlaying = false;
-        }
+		// Use reduced rotation speed on mobile
+		const rotationSpeed = isMobileDevice() ? MOBILE_ROTATION_SPEED : PLAYER_ROTATION_SPEED;
 
-        // World bounds check
-        this.x = Math.max(this.radius, Math.min(WORLD_WIDTH - this.radius, this.x));
-        this.y = Math.max(this.radius, Math.min(WORLD_HEIGHT - this.radius, this.y));
+		if (keysPressed['ArrowUp']) {
+			// Move forward in direction of barrel
+			this.x += Math.sin(this.rotation) * moveSpeed;
+			this.y -= Math.cos(this.rotation) * moveSpeed;
+			isMoving = true;
+		}
+		if (keysPressed['ArrowDown']) {
+			// Move backward in opposite direction of barrel
+			this.x -= Math.sin(this.rotation) * moveSpeed;
+			this.y += Math.cos(this.rotation) * moveSpeed;
+			isMoving = true;
+		}
+		if (keysPressed['ArrowLeft']) {
+			this.rotation -= rotationSpeed;
+		}
+		if (keysPressed['ArrowRight']) {
+			this.rotation += rotationSpeed;
+		}
+		
+		// Handle engine sound
+		if (isMoving && !engineSoundPlaying) {
+			audioElements.engine.play().catch(err => {
+				console.log("Engine audio play interrupted: " + err.message);
+			});
+			engineSoundPlaying = true;
+		} else if (!isMoving && engineSoundPlaying) {
+			audioElements.engine.pause();
+			engineSoundPlaying = false;
+		}
 
-        // Collision detection with obstacles
-        if (this.checkCollisionWithObstacles()) {
-            this.x = oldX;
-            this.y = oldY;
-        }
+		// World bounds check
+		this.x = Math.max(this.radius, Math.min(WORLD_WIDTH - this.radius, this.x));
+		this.y = Math.max(this.radius, Math.min(WORLD_HEIGHT - this.radius, this.y));
 
-        // Update invincibility timer
-        if (this.invincible) {
-            this.invincibleTimer -= deltaTime * 1000; // Convert to ms
-            if (this.invincibleTimer <= 0) {
-                this.invincible = false;
-            }
-        }
-    }
+		// Collision detection with obstacles
+		if (this.checkCollisionWithObstacles()) {
+			this.x = oldX;
+			this.y = oldY;
+		}
+
+		// Update invincibility timer
+		if (this.invincible) {
+			this.invincibleTimer -= deltaTime * 1000; // Convert to ms
+			if (this.invincibleTimer <= 0) {
+				this.invincible = false;
+			}
+		}
+	}
 
     checkCollisionWithObstacles() {
         for (const obstacle of obstacles) {

@@ -20,6 +20,7 @@ const SPRITE_SIZE = 64;
 const EXPLOSION_SIZE = 96;
 const PLAYER_SPEED = 200;
 const PLAYER_ROTATION_SPEED = 0.05;
+const MOBILE_ROTATION_SPEED = 0.03; // Slower rotation for mobile
 const ENEMY_SPEED = 100;
 const ENEMY_SIGHT_RANGE = 400;
 const ENEMY_SIGHT_WIDTH = 64;
@@ -109,6 +110,7 @@ const youWinElem = document.getElementById('youWin');
 // Resize minimap
 minimapCanvas.width = MINIMAP_SIZE;
 minimapCanvas.height = MINIMAP_SIZE;
+
 
 // Enemy class
 class Enemy {

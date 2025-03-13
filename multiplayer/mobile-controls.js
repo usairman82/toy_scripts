@@ -207,32 +207,40 @@ function initMobileControls() {
     movementJoystick.addEventListener('touchend', endJoystickMovement);
     movementJoystick.addEventListener('touchcancel', endJoystickMovement);
 
-    // Function to convert joystick position to key presses
-    function updateMobileControls() {
-        // Vertical movement (forward/backward)
-        if (currentThumbPosition.y < -0.3) {
-            keysPressed['ArrowUp'] = true;
-            keysPressed['ArrowDown'] = false;
-        } else if (currentThumbPosition.y > 0.3) {
-            keysPressed['ArrowUp'] = false;
-            keysPressed['ArrowDown'] = true;
-        } else {
-            keysPressed['ArrowUp'] = false;
-            keysPressed['ArrowDown'] = false;
-        }
-        
-        // Horizontal movement (rotation left/right)
-        if (currentThumbPosition.x < -0.3) {
-            keysPressed['ArrowLeft'] = true;
-            keysPressed['ArrowRight'] = false;
-        } else if (currentThumbPosition.x > 0.3) {
-            keysPressed['ArrowLeft'] = false;
-            keysPressed['ArrowRight'] = true;
-        } else {
-            keysPressed['ArrowLeft'] = false;
-            keysPressed['ArrowRight'] = false;
-        }
-    }
+	// Function to convert joystick position to key presses with reduced sensitivity
+	function updateMobileControls() {
+		// Create a dead zone in the center (increased from 0.3 to 0.4)
+		const deadZone = 0.4;
+		
+		// Apply dampening to make controls less sensitive
+		const dampening = 0.6; // Lower = less sensitive
+		const dampX = currentThumbPosition.x * dampening;
+		const dampY = currentThumbPosition.y * dampening;
+		
+		// Vertical movement (forward/backward) with dead zone
+		if (dampY < -deadZone) {
+			keysPressed['ArrowUp'] = true;
+			keysPressed['ArrowDown'] = false;
+		} else if (dampY > deadZone) {
+			keysPressed['ArrowUp'] = false;
+			keysPressed['ArrowDown'] = true;
+		} else {
+			keysPressed['ArrowUp'] = false;
+			keysPressed['ArrowDown'] = false;
+		}
+		
+		// Horizontal movement (rotation left/right) with dead zone and reduced sensitivity
+		if (dampX < -deadZone) {
+			keysPressed['ArrowLeft'] = true;
+			keysPressed['ArrowRight'] = false;
+		} else if (dampX > deadZone) {
+			keysPressed['ArrowLeft'] = false;
+			keysPressed['ArrowRight'] = true;
+		} else {
+			keysPressed['ArrowLeft'] = false;
+			keysPressed['ArrowRight'] = false;
+		}
+	}
 
     // Add event listeners for action buttons
     fireButton.addEventListener('touchstart', (e) => {
