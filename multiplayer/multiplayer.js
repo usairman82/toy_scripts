@@ -21,129 +21,138 @@ class MultiplayerManager {
         this.setupConnection();
     }
     
-    setupConnection() {
-        try {
-            console.log("Connecting to signaling server:", this.signalServer);
-            this.socket = new WebSocket(this.signalServer);
-            
-            this.socket.onopen = () => {
-                console.log("Connected to signaling server");
-                // Generate a unique ID for this player
-                this.localPlayerId = this.generateUniqueId();
-                
-                // Send a simple join message - the server will handle room assignment
-                this.socket.send(JSON.stringify({
-                    type: "join",
-                    playerId: this.localPlayerId
-                }));
-                
-                // Update tracking
-                trackEvent("multiplayer_connected");
-                
-                // Update connection status UI if function exists
-                if (typeof updateConnectionStatus === 'function') {
-                    updateConnectionStatus("Connected to server, joining main room...", "#FFC107");
-                }
-            };
-this.socket.onmessage = (event) => {
-                console.log("Received message from server:", event.data);
-                try {
-                    const message = JSON.parse(event.data);
-                    
-                    // Log detailed info about incoming messages
-                    if (message.type === "room_info") {
-                        console.log(`Room info received: ${message.players.length} players already in room`);
-                        if (typeof updateConnectionStatus === 'function') {
-                            updateConnectionStatus("Connected to main room", "#4CAF50");
-                        }
-                    } else if (message.type === "new_player") {
-                        console.log(`New player notification: ${message.playerId}`);
-                    }
-                    
-                    switch (message.type) {
-                        case "room_info":
-                            console.log("Handling room info:", message);
-                            this.handleRoomInfo(message);
-                            break;
-                        case "new_player":
-                            console.log("Handling new player:", message);
-                            this.handleNewPlayer(message);
-                            break;
-                        case "player_left":
-                            console.log("Handling player left:", message);
-                            this.handlePlayerLeft(message);
-                            break;
-                        case "offer":
-                            console.log("Handling offer from:", message.from);
-                            this.handleOffer(message);
-                            break;
-                        case "answer":
-                            console.log("Handling answer from:", message.from);
-                            this.handleAnswer(message);
-                            break;
-                        case "ice_candidate":
-                            console.log("Handling ICE candidate from:", message.from);
-                            this.handleIceCandidate(message);
-                            break;
-                        default:
-                            console.warn("Unknown message type:", message.type);
-                    }
-                } catch (parseError) {
-                    console.error("Error parsing message:", parseError, "Raw message:", event.data);
-                }
-            };
-this.socket.onclose = (event) => {
-                console.log("Disconnected from signaling server", 
-                            "Code:", event.code, 
-                            "Reason:", event.reason || "No reason provided", 
-                            "Clean:", event.wasClean);
-                
-                if (typeof updateConnectionStatus === 'function') {
-                    updateConnectionStatus("Disconnected - trying to reconnect...", "#F44336");
-                }
-                
-                // Check if we should try to reconnect
-                if (this.connectionAttempts < 5) {
-                    // Exponential backoff for reconnection attempts
-                    const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
-                    this.connectionAttempts = (this.connectionAttempts || 0) + 1;
-                    console.log(`Attempting reconnection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
-                    setTimeout(() => this.setupConnection(), delay);
-                } else {
-                    console.log("Max reconnection attempts reached. Please refresh the page to try again.");
-                    alert("Could not connect to multiplayer server. Please try again later.");
-                }
-            };
-            
-            this.socket.onerror = (error) => {
-                console.error("WebSocket error:", error);
-                console.log("Browser:", navigator.userAgent);
-                console.log("Current location:", window.location.href);
-                
-                if (typeof updateConnectionStatus === 'function') {
-                    updateConnectionStatus("Connection error - check console", "#F44336");
-                }
-                
-                // Check for common issues
-                if (window.location.protocol === "http:" && this.signalServer.startsWith("wss:")) {
-                    console.warn("Potential mixed content issue: Trying to connect to secure WebSocket from non-secure page");
-                }
-            };
-        } catch (e) {
-            console.error("Error setting up WebSocket connection:", e);
-            // Initialize reconnection counter if not already set
-            this.connectionAttempts = (this.connectionAttempts || 0) + 1;
-            
-            if (this.connectionAttempts < 5) {
-                const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
-                console.log(`Will retry connection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
-                setTimeout(() => this.setupConnection(), delay);
-            } else {
-                console.log("Max connection attempts reached");
-                alert("Failed to connect to multiplayer server. Please try again later.");
-            }
-        }
-    }
+	setupConnection() {
+		try {
+			console.log("Connecting to signaling server:", this.signalServer);
+			this.socket = new WebSocket(this.signalServer);
+			
+			// Store reference to message handler for proper binding
+			this.handleSocketMessage = (event) => {
+				console.log("📨 RAW SOCKET MESSAGE RECEIVED:", event.data);
+				try {
+					const message = JSON.parse(event.data);
+					console.log("📩 PARSED MESSAGE:", message);
+					
+					// Log detailed info about incoming messages
+					if (message.type === "room_info") {
+						console.log(`🏠 Room info received: ${message.players.length} players already in room`, message.players);
+						if (typeof updateConnectionStatus === 'function') {
+							updateConnectionStatus("Connected to main room", "#4CAF50");
+						}
+						this.handleRoomInfo(message);
+					} else if (message.type === "new_player") {
+						console.log(`👋 New player notification: ${message.playerId}`);
+						this.handleNewPlayer(message);
+					} else if (message.type === "player_left") {
+						console.log("👋 Player left notification");
+						this.handlePlayerLeft(message);
+					} else if (message.type === "offer") {
+						console.log("📞 Handling offer");
+						this.handleOffer(message);
+					} else if (message.type === "answer") {
+						console.log("📞 Handling answer");
+						this.handleAnswer(message);
+					} else if (message.type === "ice_candidate") {
+						console.log("❄️ Handling ICE candidate");
+						this.handleIceCandidate(message);
+					} else if (message.type === "pong") {
+						console.log("🏓 Received pong response");
+					} else {
+						console.warn("⚠️ Unknown message type:", message.type);
+					}
+				} catch (parseError) {
+					console.error("❌ Error parsing message:", parseError, "Raw message:", event.data);
+				}
+			};
+			
+			// Add our message handler - using addEventListener for better compatibility
+			this.socket.addEventListener('message', this.handleSocketMessage);
+			
+			this.socket.onopen = () => {
+				console.log("Connected to signaling server");
+				// Generate a unique ID for this player
+				this.localPlayerId = this.generateUniqueId();
+				
+				console.log("🚀 ABOUT TO SEND JOIN MESSAGE WITH PLAYER ID:", this.localPlayerId);
+				// Send a simple join message - the server will handle room assignment
+				this.socket.send(JSON.stringify({
+					type: "join",
+					playerId: this.localPlayerId
+				}));
+				console.log("📤 JOIN MESSAGE SENT");
+				
+				// Update tracking
+				trackEvent("multiplayer_connected");
+				
+				// Update connection status UI if function exists
+				if (typeof updateConnectionStatus === 'function') {
+					updateConnectionStatus("Connected to server, joining main room...", "#FFC107");
+				}
+				
+				// Send a test ping after a short delay
+				setTimeout(() => {
+					if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+						console.log("🏓 Sending test ping");
+						this.socket.send(JSON.stringify({
+							type: "ping",
+							timestamp: Date.now()
+						}));
+					}
+				}, 1000);
+			};
+			
+			this.socket.onclose = (event) => {
+				console.log("Disconnected from signaling server", 
+							"Code:", event.code, 
+							"Reason:", event.reason || "No reason provided", 
+							"Clean:", event.wasClean);
+				
+				if (typeof updateConnectionStatus === 'function') {
+					updateConnectionStatus("Disconnected - trying to reconnect...", "#F44336");
+				}
+				
+				// Check if we should try to reconnect
+				if (this.connectionAttempts < 5) {
+					// Exponential backoff for reconnection attempts
+					const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
+					this.connectionAttempts = (this.connectionAttempts || 0) + 1;
+					console.log(`Attempting reconnection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
+					setTimeout(() => this.setupConnection(), delay);
+				} else {
+					console.log("Max reconnection attempts reached. Please refresh the page to try again.");
+					alert("Could not connect to multiplayer server. Please try again later.");
+				}
+			};
+			
+			this.socket.onerror = (error) => {
+				console.error("WebSocket error:", error);
+				console.log("Browser:", navigator.userAgent);
+				console.log("Current location:", window.location.href);
+				
+				if (typeof updateConnectionStatus === 'function') {
+					updateConnectionStatus("Connection error - check console", "#F44336");
+				}
+				
+				// Check for common issues
+				if (window.location.protocol === "http:" && this.signalServer.startsWith("wss:")) {
+					console.warn("Potential mixed content issue: Trying to connect to secure WebSocket from non-secure page");
+				}
+			};
+		} catch (e) {
+			console.error("Error setting up WebSocket connection:", e);
+			// Initialize reconnection counter if not already set
+			this.connectionAttempts = (this.connectionAttempts || 0) + 1;
+			
+			if (this.connectionAttempts < 5) {
+				const delay = Math.min(30000, Math.pow(2, this.connectionAttempts) * 1000);
+				console.log(`Will retry connection in ${delay/1000} seconds (attempt ${this.connectionAttempts})`);
+				setTimeout(() => this.setupConnection(), delay);
+			} else {
+				console.log("Max connection attempts reached");
+				alert("Failed to connect to multiplayer server. Please try again later.");
+			}
+		}
+	}
     
     generateUniqueId() {
         return Math.random().toString(36).substring(2, 15) + 
