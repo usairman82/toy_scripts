@@ -391,3 +391,59 @@ window.addEventListener('resize', function() {
         setTimeout(adjustCanvasForMobile, 300);
     }
 });
+
+// Add this code to your mobile-controls.js file, inside the initMobileControls function
+// Add it after you create the weapon button
+
+// Create sound toggle button for mobile
+const soundButton = document.createElement('button');
+soundButton.id = 'mobileSoundButton';
+soundButton.className = 'action-button sound-button';
+soundButton.innerHTML = '🔊';
+actionButtons.appendChild(soundButton);
+
+// Add CSS for the sound button
+const soundButtonStyle = `
+    .sound-button {
+        background-color: rgba(50, 150, 50, 0.7);
+    }
+    
+    /* Make the buttons three in a row instead of two */
+    @media (max-width: 1024px), (pointer: coarse) {
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        #mobileSoundButton {
+            grid-column: 1 / span 2;
+            grid-row: 2;
+            width: 60px;
+            height: 60px;
+            justify-self: center;
+        }
+    }
+`;
+
+// Add style to the document
+const soundStyleElement = document.createElement('style');
+soundStyleElement.textContent = soundButtonStyle;
+document.head.appendChild(soundStyleElement);
+
+// Add event listener for the sound toggle button
+soundButton.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    soundButton.classList.add('pressed');
+    // Call the global toggleSound function if it exists
+    if (typeof toggleSound === 'function') {
+        toggleSound();
+        // Update button text based on sound state
+        soundButton.innerHTML = window.soundEnabled ? '🔊' : '🔇';
+    }
+});
+
+soundButton.addEventListener('touchend', () => {
+    soundButton.classList.remove('pressed');
+});

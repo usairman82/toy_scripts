@@ -915,3 +915,157 @@ window.addEventListener('keyup', (e) => {
     keysPressed[e.key] = false;
 });
 
+
+// Add this code to your game.js file
+
+// Global sound state
+let soundEnabled = true;
+
+// Create sound toggle button
+function createSoundToggleButton() {
+    // Create button element
+    const soundButton = document.createElement('button');
+    soundButton.id = 'soundToggleButton';
+    soundButton.className = 'sound-button';
+    soundButton.innerHTML = '🔊'; // Speaker emoji with sound
+    
+    // Style the button
+    Object.assign(soundButton.style, {
+        position: 'absolute',
+        top: '10px',
+        right: '170px', // Position to the left of the minimap
+        width: '40px',
+        height: '40px',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        color: 'white',
+        border: '2px solid rgba(255, 255, 255, 0.5)',
+        borderRadius: '50%',
+        fontSize: '20px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: '100',
+        padding: '0'
+    });
+    
+    // Add click event listener
+    soundButton.addEventListener('click', toggleSound);
+    
+    // Add button to document
+    document.body.appendChild(soundButton);
+}
+
+// Toggle sound on/off
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    
+    // Update button icon
+    const soundButton = document.getElementById('soundToggleButton');
+    if (soundButton) {
+        soundButton.innerHTML = soundEnabled ? '🔊' : '🔇';
+    }
+    
+    // Stop engine sound immediately if it's playing
+    if (!soundEnabled && engineSoundPlaying) {
+        audioElements.engine.pause();
+        engineSoundPlaying = false;
+    }
+    
+    // Set volume for all audio elements
+    for (const audio of Object.values(audioElements)) {
+        audio.volume = soundEnabled ? (audio === audioElements.engine ? 0.2 : 0.3) : 0;
+    }
+    
+    console.log("Sound " + (soundEnabled ? "enabled" : "disabled"));
+}
+
+// Override the playSound function to respect sound enabled state
+const originalPlaySound = window.playSound || function() {};
+window.playSound = function(sound) {
+    if (!soundEnabled) return;
+    originalPlaySound(sound);
+};
+
+// Initialize sound toggle button
+document.addEventListener('DOMContentLoaded', createSoundToggleButton);
+
+// Load sound preference from localStorage
+function loadSoundPreference() {
+    try {
+        const savedPreference = localStorage.getItem('tankGameSoundEnabled');
+        if (savedPreference !== null) {
+            soundEnabled = savedPreference === 'true';
+            console.log("Loaded sound preference: " + soundEnabled);
+            
+            // Update button state
+            const soundButton = document.getElementById('soundToggleButton');
+            if (soundButton) {
+                soundButton.innerHTML = soundEnabled ? '🔊' : '🔇';
+            }
+            
+            const mobileSoundButton = document.getElementById('mobileSoundButton');
+            if (mobileSoundButton) {
+                mobileSoundButton.innerHTML = soundEnabled ? '🔊' : '🔇';
+            }
+            
+            // Set volume for all audio elements
+            for (const audio of Object.values(audioElements)) {
+                audio.volume = soundEnabled ? (audio === audioElements.engine ? 0.2 : 0.3) : 0;
+            }
+        }
+    } catch (e) {
+        console.log("Could not load sound preference: " + e);
+    }
+}
+
+// Save sound preference to localStorage
+function saveSoundPreference() {
+    try {
+        localStorage.setItem('tankGameSoundEnabled', soundEnabled.toString());
+        console.log("Saved sound preference: " + soundEnabled);
+    } catch (e) {
+        console.log("Could not save sound preference: " + e);
+    }
+}
+
+// Update the toggleSound function to save preference
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    
+    // Update button icons
+    const soundButton = document.getElementById('soundToggleButton');
+    if (soundButton) {
+        soundButton.innerHTML = soundEnabled ? '🔊' : '🔇';
+    }
+    
+    const mobileSoundButton = document.getElementById('mobileSoundButton');
+    if (mobileSoundButton) {
+        mobileSoundButton.innerHTML = soundEnabled ? '🔊' : '🔇';
+    }
+    
+    // Stop engine sound immediately if it's playing
+    if (!soundEnabled && engineSoundPlaying) {
+        audioElements.engine.pause();
+        engineSoundPlaying = false;
+    }
+    
+    // Set volume for all audio elements
+    for (const audio of Object.values(audioElements)) {
+        audio.volume = soundEnabled ? (audio === audioElements.engine ? 0.2 : 0.3) : 0;
+    }
+    
+    // Save preference
+    saveSoundPreference();
+    
+    console.log("Sound " + (soundEnabled ? "enabled" : "disabled"));
+}
+
+// Load sound preference when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Create the toggle button
+    createSoundToggleButton();
+    
+    // Load saved preference
+    loadSoundPreference();
+});
