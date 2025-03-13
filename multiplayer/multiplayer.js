@@ -268,84 +268,93 @@ handleRoomInfo(message) {
         }
     }
 createPeerConnection(remotePlayerId, isInitiator) {
-        try {
-            console.log(`Creating peer connection with ${remotePlayerId}, initiator: ${isInitiator}`);
+    try {
+        console.log(`Creating peer connection with ${remotePlayerId}, initiator: ${isInitiator}`);
+        
+        const peerConnection = new RTCPeerConnection({
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" }
+            ]
+        });
+        
+        // Store the peer connection
+        this.peers[remotePlayerId] = peerConnection;
+        this.pendingIceCandidates[remotePlayerId] = [];
+        
+        // Setup data channels
+        if (isInitiator) {
+            // Game data channel for game state synchronization
+            const gameDataChannel = peerConnection.createDataChannel("game");
+            this.setupDataChannel(gameDataChannel, remotePlayerId);
             
-            const peerConnection = new RTCPeerConnection({
-                iceServers: [
-                    { urls: "stun:stun.l.google.com:19302" },
-                    { urls: "stun:stun1.l.google.com:19302" }
-                ]
-            });
+            // Chat data channel for player messages
+            const chatDataChannel = peerConnection.createDataChannel("chat");
+            this.setupChatChannel(chatDataChannel, remotePlayerId);
             
-            // Store the peer connection
-            this.peers[remotePlayerId] = peerConnection;
-            this.pendingIceCandidates[remotePlayerId] = [];
-            
-            // Setup data channel
-            if (isInitiator) {
-                const dataChannel = peerConnection.createDataChannel("game");
-                this.setupDataChannel(dataChannel, remotePlayerId);
-                
-                // Create and send offer
-                peerConnection.createOffer()
-                    .then(offer => peerConnection.setLocalDescription(offer))
-                    .then(() => {
-                        this.socket.send(JSON.stringify({
-                            type: "offer",
-                            offer: peerConnection.localDescription,
-                            to: remotePlayerId,
-                            from: this.localPlayerId
-                        }));
-                    })
-                    .catch(error => console.error("Error creating offer:", error));
-            } else {
-                // Handle data channel for non-initiator
-                peerConnection.ondatachannel = (event) => {
-                    this.setupDataChannel(event.channel, remotePlayerId);
-                };
-            }
-            
-            // ICE candidate handling
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
+            // Create and send offer
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
                     this.socket.send(JSON.stringify({
-                        type: "ice_candidate",
-                        candidate: event.candidate,
+                        type: "offer",
+                        offer: peerConnection.localDescription,
                         to: remotePlayerId,
                         from: this.localPlayerId
                     }));
+                })
+                .catch(error => console.error("Error creating offer:", error));
+        } else {
+            // Handle data channels for non-initiator
+            peerConnection.ondatachannel = (event) => {
+                if (event.channel.label === "game") {
+                    this.setupDataChannel(event.channel, remotePlayerId);
+                } else if (event.channel.label === "chat") {
+                    this.setupChatChannel(event.channel, remotePlayerId);
                 }
             };
-            
-            // Connection state change
-            peerConnection.onconnectionstatechange = () => {
-                console.log(`Peer connection state with ${remotePlayerId}: ${peerConnection.connectionState}`);
-                
-                if (peerConnection.connectionState === 'connected') {
-                    console.log(`Connected to player ${remotePlayerId}`);
-                    if (typeof updateConnectionStatus === 'function') {
-                        updateConnectionStatus("Connected to all players", "#4CAF50");
-                    }
-                } else if (peerConnection.connectionState === 'failed') {
-                    console.error(`Connection to player ${remotePlayerId} failed`);
-                    if (typeof updateConnectionStatus === 'function') {
-                        updateConnectionStatus("Some player connections failed", "#FF9800");
-                    }
-                }
-            };
-            
-            // ICE connection state monitoring
-            peerConnection.oniceconnectionstatechange = () => {
-                console.log(`ICE connection state with ${remotePlayerId}: ${peerConnection.iceConnectionState}`);
-            };
-            
-            return peerConnection;
-        } catch (e) {
-            console.error("Error creating peer connection:", e);
-            return null;
         }
+        
+        // ICE candidate handling
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                this.socket.send(JSON.stringify({
+                    type: "ice_candidate",
+                    candidate: event.candidate,
+                    to: remotePlayerId,
+                    from: this.localPlayerId
+                }));
+            }
+        };
+        
+        // Connection state change
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`Peer connection state with ${remotePlayerId}: ${peerConnection.connectionState}`);
+            
+            if (peerConnection.connectionState === 'connected') {
+                console.log(`Connected to player ${remotePlayerId}`);
+                if (typeof updateConnectionStatus === 'function') {
+                    updateConnectionStatus("Connected to all players", "#4CAF50");
+                }
+            } else if (peerConnection.connectionState === 'failed') {
+                console.error(`Connection to player ${remotePlayerId} failed`);
+                if (typeof updateConnectionStatus === 'function') {
+                    updateConnectionStatus("Some player connections failed", "#FF9800");
+                }
+            }
+        };
+        
+        // ICE connection state monitoring
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log(`ICE connection state with ${remotePlayerId}: ${peerConnection.iceConnectionState}`);
+        };
+        
+        return peerConnection;
+    } catch (e) {
+        console.error("Error creating peer connection:", e);
+        return null;
     }
+}
 
     setupDataChannel(dataChannel, remotePlayerId) {
         dataChannel.onopen = () => {
@@ -571,6 +580,93 @@ broadcastPlayerUpdate() {
         
         trackEvent("multiplayer_disconnected");
     }
+	
+	// In multiplayer.js, add these methods
+
+	// Add chat data channel
+	createChatDataChannel(peerConnection, remotePlayerId) {
+		try {
+			const chatChannel = peerConnection.createDataChannel("chat");
+			this.setupChatChannel(chatChannel, remotePlayerId);
+		} catch (e) {
+			console.error("Error creating chat data channel:", e);
+		}
+	}
+
+	setupChatChannel(channel, remotePlayerId) {
+		channel.onopen = () => {
+			console.log(`Chat channel to ${remotePlayerId} opened`);
+		};
+		
+		channel.onmessage = (event) => {
+			try {
+				const chatData = JSON.parse(event.data);
+				this.displayChatMessage(remotePlayerId, chatData.message);
+			} catch (e) {
+				console.error("Error processing chat message:", e);
+			}
+		};
+		
+		channel.onclose = () => {
+			console.log(`Chat channel to ${remotePlayerId} closed`);
+		};
+		
+		// Store the chat channel
+		if (this.players[remotePlayerId]) {
+			this.players[remotePlayerId].chatChannel = channel;
+		}
+	}
+
+	// Method to send chat messages
+	sendChatMessage(message) {
+		if (!this.connectionEstablished) return;
+		
+		const chatData = {
+			type: "chat",
+			message: message,
+			sender: this.localPlayerId,
+			timestamp: Date.now()
+		};
+		
+		// Broadcast to all connected players
+		for (const playerId in this.players) {
+			const player = this.players[playerId];
+			if (player.chatChannel && player.chatChannel.readyState === "open") {
+				try {
+					player.chatChannel.send(JSON.stringify(chatData));
+				} catch (e) {
+					console.error("Error sending chat message:", e);
+				}
+			}
+		}
+		
+		// Also display your own message
+		this.displayChatMessage("You", message);
+	}
+
+	// Method to display chat messages in UI
+	displayChatMessage(sender, message) {
+		// Find the appropriate sender name (You or Player X)
+		let senderName = "You";
+		if (sender !== "You") {
+			const player = this.players[sender];
+			if (player) {
+				senderName = `Player ${player.playerIndex + 1}`;
+			} else {
+				senderName = "Unknown Player";
+			}
+		}
+		
+		// Add to chat UI
+		const chatLog = document.getElementById('chatLog');
+		if (chatLog) {
+			const messageElement = document.createElement('div');
+			messageElement.className = 'chat-message';
+			messageElement.innerHTML = `<span class="chat-sender">${senderName}:</span> ${message}`;
+			chatLog.appendChild(messageElement);
+			chatLog.scrollTop = chatLog.scrollHeight; // Auto-scroll to bottom
+		}
+	}	
 }
 
 // Function to update multiplayer UI
