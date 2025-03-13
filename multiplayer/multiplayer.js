@@ -617,9 +617,45 @@ broadcastPlayerUpdate() {
 		}
 	}
 
+	// Add these methods to your MultiplayerManager class
+
+	// Setup chat data channel
+	setupChatChannel(channel, remotePlayerId) {
+		channel.onopen = () => {
+			console.log(`Chat channel to ${remotePlayerId} opened`);
+		};
+		
+		channel.onmessage = (event) => {
+			try {
+				const chatData = JSON.parse(event.data);
+				this.displayChatMessage(remotePlayerId, chatData.message);
+			} catch (e) {
+				console.error("Error processing chat message:", e);
+			}
+		};
+		
+		channel.onclose = () => {
+			console.log(`Chat channel to ${remotePlayerId} closed`);
+		};
+		
+		channel.onerror = (error) => {
+			console.error(`Chat channel error for ${remotePlayerId}:`, error);
+		};
+		
+		// Store the chat channel
+		if (this.players[remotePlayerId]) {
+			this.players[remotePlayerId].chatChannel = channel;
+		} else {
+			console.warn(`Player ${remotePlayerId} not found when setting up chat channel`);
+		}
+	}
+
 	// Method to send chat messages
 	sendChatMessage(message) {
-		if (!this.connectionEstablished) return;
+		if (!this.connectionEstablished) {
+			console.warn("Cannot send chat message: Connection not established");
+			return;
+		}
 		
 		const chatData = {
 			type: "chat",
@@ -635,12 +671,12 @@ broadcastPlayerUpdate() {
 				try {
 					player.chatChannel.send(JSON.stringify(chatData));
 				} catch (e) {
-					console.error("Error sending chat message:", e);
+					console.error(`Error sending chat message to ${playerId}:`, e);
 				}
 			}
 		}
 		
-		// Also display your own message
+		// Also display your own message locally
 		this.displayChatMessage("You", message);
 	}
 
@@ -648,12 +684,16 @@ broadcastPlayerUpdate() {
 	displayChatMessage(sender, message) {
 		// Find the appropriate sender name (You or Player X)
 		let senderName = "You";
+		let senderClass = "chat-sender-you";
+		
 		if (sender !== "You") {
 			const player = this.players[sender];
 			if (player) {
 				senderName = `Player ${player.playerIndex + 1}`;
+				senderClass = "chat-sender-other";
 			} else {
 				senderName = "Unknown Player";
+				senderClass = "chat-sender-other";
 			}
 		}
 		
@@ -662,11 +702,11 @@ broadcastPlayerUpdate() {
 		if (chatLog) {
 			const messageElement = document.createElement('div');
 			messageElement.className = 'chat-message';
-			messageElement.innerHTML = `<span class="chat-sender">${senderName}:</span> ${message}`;
+			messageElement.innerHTML = `<span class="chat-sender ${senderClass}">${senderName}:</span> ${message}`;
 			chatLog.appendChild(messageElement);
 			chatLog.scrollTop = chatLog.scrollHeight; // Auto-scroll to bottom
 		}
-	}	
+	}
 }
 
 // Function to update multiplayer UI
@@ -678,7 +718,7 @@ function updateMultiplayerUI() {
     }
 }
 
-// Function to create multiplayer UI with connection status
+// Replace the existing function in multiplayer.js
 function createMultiplayerUI() {
     const uiContainer = document.createElement('div');
     uiContainer.id = 'multiplayerUI';
@@ -801,6 +841,7 @@ function showPlayerJoinNotification(playerIndex) {
     }, 3000);
 }
 
+// Replace the existing function in multiplayer.js
 function addMultiplayerStartButton() {
     const button = document.createElement('button');
     button.id = 'multiplayer-btn';
@@ -828,12 +869,15 @@ function addMultiplayerStartButton() {
         // Create multiplayer UI
         createMultiplayerUI();
         
+        // Initialize chat UI
+        initChatUI();
+        
         trackEvent('multiplayer_started');
     };
     document.body.appendChild(button);
 }
 
-// Initialize multiplayer
+// Update the initMultiplayer function
 function initMultiplayer() {
     // Create multiplayer manager
     multiplayerManager = new MultiplayerManager({
@@ -843,6 +887,9 @@ function initMultiplayer() {
     
     // Create multiplayer UI
     createMultiplayerUI();
+    
+    // Initialize chat UI
+    initChatUI();
 }
 
 // Initialize error handling for WebRTC
