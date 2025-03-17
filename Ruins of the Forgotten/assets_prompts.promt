@@ -1,0 +1,439 @@
+# 3D Asset Prompts for "Ruins of the Forgotten"
+
+## Character Models
+
+### Player Character
+- **Archaeologist**: "Create a detailed 3D model of an adventurous archaeologist with rugged explorer attire, including a worn leather jacket, utility belt with pouches, canvas pants, and sturdy boots. The character should have a determined expression, weathered features, and equipment such as a small notebook attached to the belt. Include first-person arms model variant for FPS view. Model must be game-ready with proper topology for deformation (edge loops around joints and facial features), mesh density optimized for real-time rendering (30-40k triangles max), and UV unwrapped with 2K texture space allocation. Prepare the model for skinning with clean edge flows following muscle groups and proper geometry distribution for joint bending."
+
+### Enemies
+
+#### Skeleton Warrior
+- "Model a skeleton warrior with partial ancient Egyptian armor, featuring a curved bronze sword and a weathered shield with hieroglyphic patterns. The skeleton should have empty eye sockets with a faint glow, tattered cloth remnants, and armor pieces that show age and battle damage. Bones should be slightly yellowed and have a dry, ancient appearance. Topology must support dismemberment with clean separation points at joints. Create the model at 15-20k triangles with properly segmented meshes for physics-based bone scattering upon defeat. UV unwrap for 2K textures with shared atlas for optimization. Include socket points for weapon attachment with proper pivot placement and mesh shells for shield collision detection."
+
+#### Mummy
+- "Create a bandage-wrapped humanoid mummy with partially exposed dried flesh. Bandages should appear aged, torn in places, and hang loosely in others. Eyes should have a supernatural glow, and the exposed flesh should look desiccated and preserved. Model requires specialized topology to support bandage unraveling animations, with layered mesh construction for progressive unwrapping. Use approximately 25K triangles with cloth simulation-ready geometry. Separate material slots for bandages, exposed flesh, and glowing elements. UV unwrap with 2K texture allocation and detail maps for close-up fidelity. Prepare loose bandage ends with influence zones for physics/animation blending."
+
+#### Tomb Raider
+- "Design a human treasure hunter with practical exploration gear: utility vest with multiple pockets, ammo pouches, pistol holster, rugged pants with knee pads, and tactical boots. Include detailed head with scars or other character-defining features. Character should appear morally ambiguous and opportunistic, with facial expressions suggesting greed and caution. Model at 25-30k triangles with standard humanoid topology and additional edge loops for facial expressions. Create blend shape targets for key expressions and phonemes. UV unwrap head at 1K resolution and body at 2K with texture atlas optimization. Include weapon attachment sockets with proper transform orientation and mesh shells for equipment collisions."
+
+#### Guardian Statue
+- "Model a large animated Egyptian deity statue (approximately 2.5x human height) with a combination of human body and animal head (options: falcon/Horus, jackal/Anubis, or crocodile/Sobek). Stone texture should show ancient craftsmanship with worn edges, cracks, and hieroglyphic details. Design should include glowing runes that activate when animated. Create with fracture-ready topology (~30K triangles) allowing for progressive damage states with internal structure revealed when damaged. Use vertex color map to mark potential break points. UV unwrap at 2K resolution with specialized detail maps for cracks and hieroglyphics. Include hidden joint mechanisms for animation with proper volume preservation at bend points."
+
+#### Cursed Hound
+- "Create a skeletal/mummified canine with exposed rib cage, desiccated muscle tissue connecting joints, and glowing eyes. The model should convey an unnatural, aggressive posture with sharp teeth and claws. Include partial bandage wrappings and ancient Egyptian collar or ceremonial decorations. Model at 15-18K triangles with quadruped-optimized topology. Create jaw with proper bite deformation and articulated teeth. UV unwrap at 2K resolution with shared texture atlas for optimization. Include contact points for footstep effects and specialized collision mesh for gameplay interaction. Design mesh with proper deformation points for animation blending between locomotion types (walk, run, leap, prowl)."
+
+#### Spectral Wraith
+- "Design a translucent ghostly figure with flowing, ethereal robes that defy gravity. The wraith should have a vaguely humanoid upper body that dissipates into vapor at the lower extremities. Include glowing eyes, elongated fingers, and hieroglyphic symbols etched into its spectral form that emit an eerie light. Model should support transparency effects. Create using 20K triangles with specialized topology for cloth simulation and particle attachment points. Mesh should include vertex alpha gradients for transparency effects. UV unwrap at 2K resolution with specialized texture channels for emission mapping. Include multiple LODs with optimized particle spawn points for distance rendering. Prepare mesh for shader effects with proper tangent space and normal mapping support for ethereal rendering techniques."
+
+### Mini-Bosses and Final Boss
+
+#### Skeleton Captain
+- "Create an elite skeleton warrior with more elaborate armor featuring gold accents, a distinctive helmet with decorative plume, and a larger, more ornate sword and shield. Include trophy skulls or other trophies attached to armor, and distinctive glowing eyes with a different color than regular skeletons. Model at 35K triangles with modular construction for equipment swapping during battle phases. Implement advanced dismemberment points with internal joint connection visualization. UV unwrap at 4K resolution (2K diffuse, 2K details) with specialized material slots for damaged states. Include complex vertex weighting for nuanced animation and specialized collision volumes for elaborate attack patterns. Design with animation-driven material parameter exposure for dramatic effects during special attacks."
+
+#### Elemental Guardians (4 versions)
+- "Design four distinct guardian statues representing elements: 
+  1. Fire (falcon-headed with flame details) - Include particle emitter attachment points and heat distortion volume
+  2. Water (crocodile-headed with flowing water effects) - Create with fluid simulation-ready surfaces and splash collision points
+  3. Earth (bull-headed with crystal/stone protrusions) - Design with fracture planes for rock eruption effects and impact deformation
+  4. Air (ibis-headed with cloud/wind patterns) - Develop with cloth physics-ready elements and wind effect volumes
+  
+  Each should have unique ornamentation reflecting their element while maintaining cohesive ancient Egyptian style. Model each at 30-40K triangles with shared base topology for animation retargeting. Create with damage state transition meshes and specialized material slots for elemental effects. UV unwrap at 4K resolution with element-specific detail maps. Include sockets for visual effect attachment and collision volumes for element-specific gameplay interactions."
+
+#### Pharaoh's Wrath (Final Boss)
+- "Create an imposing mummified pharaoh figure with elaborate royal regalia, including tall crown, ceremonial beard, staff, and ankh. The model should show both preserved and decayed aspects, with glowing hieroglyphics across body and attire. Design should support multiple battle phases with transformation capabilities between humanoid form and supernatural manifestations. Model at 50-60K triangles with blend-shape-ready topology for transformation sequences. Create with three distinct mesh states (humanoid, monstrous, energy form) with smooth transition mapping. UV unwrap at 4K with specialized masks for progressive transformation effects. Include complex socket hierarchy for effects attachment and specialized vertex weighting for supernatural animation effects. Design collision volumes with dynamic adaptation for each phase transition. Implement animation-driven material parameter control for dramatic visual feedback during phase changes."
+
+## Weapons
+
+### Melee Weapons
+
+#### Dagger
+- "Model an ornate ceremonial dagger with a curved blade featuring hieroglyphic inscriptions. The handle should be gold/brass with Egyptian motifs (scarabs, eyes of Horus, etc.). Include weathered details while maintaining a sense of ancient craftsmanship and ceremonial importance. Create at 5-8K triangles with clean topology for first-person view quality. Include proper grip alignment socket and blade collision volume. UV unwrap at 2K resolution with separate material slots for blade, handle, and inscriptions. Design with trail effect spline and vertex color masks for wear patterns. Model with animation-ready pivot points and physics properties for proper handling animation."
+
+#### Sword
+- "Create an ancient bronze-colored sword with a slightly curved blade. The hilt should feature ornate scarab or ankh motifs with inlaid gemstones or colored glass. The blade should show signs of age while maintaining a functional appearance, with subtle hieroglyphic etchings along the fuller. Model at 10-12K triangles with proper edge flow for silhouette quality. Create with collision volumes for combat interactions and trail effect spline path. UV unwrap at 2K resolution with material ID maps for varied surface properties. Include socket points for particle effects and impact decals. Design with balanced weighting for proper animation physics and handle alignment for first/third person views."
+
+### Ranged Weapons
+
+#### Pistol
+- "Design an antique-looking semi-automatic pistol with a brass/bronze frame featuring Egyptian symbols etched on the barrel and grip. The model should include visible moving parts (hammer, slide) and combine historical firearm aesthetics with subtle archaeological expedition modifications. Model at 12-15K triangles with articulated mechanical parts on separate mesh elements. Create with proper socket points for hand positioning and muzzle effects. Include reload animation pivots and magazine insertion guide. UV unwrap at 2K resolution with weathering mask details. Design shell ejection path and bullet spawn position with collision-aware trajectories."
+
+#### Shotgun
+- "Create a double-barrel break-action shotgun with ornate engravings featuring Egyptian motifs. The stock should be weathered wood with metal reinforcements, and the barrels should have decorative bands and symbols. Design should emphasize both function and ceremonial embellishment. Model at 15-18K triangles with animated break-action mechanism. Include shell loading socket points and ejection path. Create with proper hand positioning guides for first/third person views. UV unwrap at 2K resolution with material separation for wood, metal, and engravings. Design with recoil animation constraints and muzzle effect attachment points with cone spread pattern."
+
+#### Machine Gun
+- "Model a steampunk/ancient hybrid machine gun with copper/brass elements and a visible drum magazine. The design should suggest a mysterious blend of modern function and ancient technology, with mechanical gears, ancient symbols, and decorative elements that hint at supernatural power. Create at 20-25K triangles with animated feed mechanism and moving parts. Include magazine attachment socket with proper alignment guides. Design with heat distortion effect volume near barrel and shell ejection path. UV unwrap at 2K resolution with specialized maps for worn metal properties. Include tracer effect spawn points and mechanical cycling animation pivots with proper constraints."
+
+#### Ancient Staff
+- "Design a wooden staff with a glowing crystal or orb at the top, flanked by an Egyptian deity head (Anubis or Horus). The staff should feature intricate carvings along its length that appear to glow when activated. Include animation-friendly effects attachment points for the magical projectile effects. Model at 15-18K triangles with emphasis on detailed carved elements. Create with specialized emission geometry for glow effects and particle spawn points. Include hand alignment socket with proper grip position. UV unwrap at 2K resolution with specialized emissive channels for magical elements. Design with animation-driven glow intensity parameters and spell casting alignment guides. Implement vertex color masks for progressive energy flow visualization during charging."
+
+## Environment Assets
+
+### Level 1: The Entrance - "The Threshold of the Damned"
+
+#### Architectural Elements
+- "Create a set of sandstone entrance pillars in various states of decay: intact, partially crumbled, and severely damaged. Pillars should feature hieroglyphic carvings and Egyptian stylistic elements with realistic weathering from centuries of exposure."
+
+- "Design a grand entrance gate with massive doors featuring protective deities and hieroglyphic warnings. The gate should show signs of age but maintain an imposing presence with detailed relief carvings and metal accents."
+
+- "Model a collapsible bridge section with ancient stone construction and visible trigger mechanism. The design should allow for animation of the collapse sequence while maintaining architectural authenticity to ancient Egyptian design."
+
+#### Interactive Elements
+- "Create a hidden lever mechanism disguised within a wall hieroglyphic panel. The mechanism should include moving parts that reveal the lever when certain symbols are aligned correctly."
+
+- "Design a set of hieroglyphic puzzle panels with movable sections that can be rotated or slid to form complete images. Each panel should feature distinct Egyptian symbols with worn but recognizable details."
+
+- "Model a set of movable statue pieces (head, torso, limbs, base) that can be assembled for weight distribution puzzles. Statues should represent Egyptian deities with appropriate iconography."
+
+### Level 2: The Hall of Kings - "The Whispering Tombs"
+
+#### Architectural Elements
+- "Create a royal tomb chamber with sarcophagus, canopic jars, treasure chests, and funeral offerings. The sarcophagus should feature intricate royal hieroglyphics and a detailed pharaoh mask on the lid."
+
+- "Design a ceremonial door with complex locking mechanism requiring multiple keystones. The door should feature Egyptian symbols of protection and warnings with spaces for the missing keystones."
+
+- "Model a series of tomb walls featuring royal historical scenes in relief carvings. The walls should show the life achievements of ancient rulers with painted elements partially preserved."
+
+#### Interactive Elements
+- "Create an interactive sarcophagus with slidable lid and internal contents. The sarcophagus should feature royal decorations and contain a mummified body with treasures and puzzle items."
+
+- "Design a set of royal seals that fit into specific receptacles throughout the level. Each seal should represent a different Egyptian dynasty with distinctive artistic styles."
+
+- "Model a mechanical gong system with resonating sound puzzle elements. The gongs should be decorative with Egyptian motifs while maintaining functional appearance for the sound-based puzzle."
+
+### Level 3: The Shadow Maze - "Lost in Darkness"
+
+#### Architectural Elements
+- "Create a set of black stone maze corridors with confusing similar-looking junctions. The walls should feature subtle distinguishing markings that observant players can use for navigation."
+
+- "Design mirrored passage sections with reflective surfaces and optical illusion elements. The mirrors should appear ancient with tarnished surfaces that still function as reflectors."
+
+- "Model a series of portal doorways with mystical energy effects connecting different maze areas. These portals should feature Egyptian cosmic symbols and support particle effects."
+
+#### Interactive Elements
+- "Create a set of symbol matching panels that reveal hidden paths when correctly activated. The symbols should represent Egyptian constellations with star patterns that illuminate when matched."
+
+- "Design adjustable mirror pedestals for light reflection puzzles. The mirrors should be mounted on ancient mechanisms that allow rotation with visible gearing and pivot points."
+
+- "Model a ceiling constellation mapping puzzle with movable star markers. The ceiling should feature a realistic ancient Egyptian star map with interactive components."
+
+### Level 4: The Inner Sanctum - "The Curse Awakens"
+
+#### Architectural Elements
+- "Create a grand temple chamber with massive deity statues flanking a central ceremonial area. The statues should represent major Egyptian gods with distinctive attributes and regalia."
+
+- "Design elemental altar stations (fire, water, earth, air) with distinctive visual characteristics. Each altar should represent its element through Egyptian symbolism and practical design elements."
+
+- "Model an ancient technological mechanism room with visible workings showing the temple's operation. The mechanism should feature gears, counterweights, and channels that suggest sophisticated ancient engineering."
+
+#### Interactive Elements
+- "Create a rotating room mechanism with moving wall sections that change the layout. The rotation mechanism should include visible tracks, gears, and counterweights that suggest how the ancient device functions."
+
+- "Design an ancient musical instrument with interactive keys/strings for puzzle sequences. The instrument should represent an authentic ancient Egyptian design with decorative elements."
+
+- "Model a counterweight pulley system for accessing upper levels. The system should include ropes, weights, and pulleys with a design that appears functional and period-appropriate."
+
+### Level 5: The Heart of Eternity - "Final Confrontation"
+
+#### Architectural Elements
+- "Create a mystical inner chamber with cosmic energy features and reality distortion effects. The chamber should blend traditional Egyptian architecture with supernatural elements that defy normal physics."
+
+- "Design floating platform sections with ancient technology/magic hybrid appearance. The platforms should feature hieroglyphic inscriptions that glow with energy and appear to hover through mystical means."
+
+- "Model a temple collapse sequence with breakaway architectural elements. The design should include structural weak points and articulated sections that can animate during the collapse."
+
+#### Interactive Elements
+- "Create the central artifact altar with protective mechanisms and elaborate decorations. The altar should feature concentric rings of hieroglyphics that move during the final puzzle sequence."
+
+- "Design energy redirection nodes for the boss battle mechanics. The nodes should combine ancient Egyptian design with supernatural energy capability through crystals and metal conductors."
+
+- "Model time manipulation devices with anachronistic mechanical/magical components. These devices should suggest the ability to bend reality through a combination of ancient wisdom and impossible technology."
+
+## Props and Interactive Objects
+
+### Common Items
+
+#### Health Items
+- "Create a set of healing items with Egyptian themes:
+  1. Bandage rolls with hieroglyphic blessings
+  2. Herbal medicine pouches with dried plants
+  3. Magical healing potions in decorative vials with ankh symbols"
+
+#### Ammunition
+- "Design ammunition pickups for each weapon type:
+  1. Pistol bullets in ornate boxes
+  2. Shotgun shells with decorative casings
+  3. Machine gun ammo belts with hieroglyphic-decorated cases"
+
+#### Puzzle Items
+- "Create a set of key items with distinct visual styles:
+  1. Bronze scorpion key with articulated legs
+  2. Jade scarab key with detailed wing case
+  3. Golden ankh key with inlaid gemstones
+  4. Crystal eye of Horus key with glowing pupil"
+
+#### Interactive Objects
+- "Design a set of environmental interaction items:
+  1. Wall-mounted torches that can be lit/extinguished
+  2. Pressure plates with visible mechanical connections
+  3. Movable stone blocks with handle indentations
+  4. Breakable urns and pottery with Egyptian decorations"
+
+### Special Items
+
+#### Legendary Artifact (Game Goal)
+- "Create an elaborately detailed mystical artifact combining elements of ankh, scarab, and solar disk. The artifact should feature multiple moving parts, gemstone inlays, and glowing hieroglyphics with a design suggesting immense power and age."
+
+#### Lore Items
+- "Design a set of collectible lore items:
+  1. Ancient papyrus scrolls with readable hieroglyphics
+  2. Archaeologist's journal pages with sketches and notes
+  3. Small figurines representing Egyptian pantheon
+  4. Stone tablets with historical records"
+
+## Environmental Effects and Particles
+
+### Weather and Atmospheric Effects
+- "Create sand and dust particle systems with variable density and movement patterns for environmental atmosphere."
+
+- "Design magical energy effect systems with Egyptian thematic elements (ankh shapes, hieroglyphic patterns in the energy)."
+
+- "Model water effects for flooding chambers and quicksand areas with appropriate physical interaction properties."
+
+### Combat and Interaction Effects
+- "Create weapon impact effect systems for different surfaces (stone chips, sand bursts, magical energy dissipation)."
+
+- "Design enemy-specific death effects (skeleton bone scattering, mummy bandage unraveling, wraith dissipation)."
+
+- "Model trap activation effects (poison darts with trails, fire jets, spike emergence animations)."
+
+## Animation & Rigging Requirements
+
+### Character Rigging Specifications
+
+#### Player Character Rig
+- "Create a game-ready humanoid rig with proper weight painting and IK (Inverse Kinematics) handles for the player character. Include:
+  1. First-person arms rig with optimized bone count (15-20 bones max)
+  2. Full-body rig for third-person view (50-60 bones)
+  3. Facial bone system for expressions (20 bones)
+  4. Separate attachment points for equipment and weapons
+  5. Root motion control for animation transfer to game engine
+  6. Export-ready for Unity/Unreal with proper naming conventions"
+
+#### Enemy Skeleton Rigs
+
+##### Humanoid Enemies (Skeleton Warrior, Mummy, Tomb Raider)
+- "Create humanoid rigs with bones optimized for game performance:
+  1. Base humanoid skeleton (40-50 bones)
+  2. IK chains for arms and legs
+  3. Weapon attachment bones with proper transforms
+  4. Special bones for unique features:
+     - Skeleton: Detachable/physics bones for dismemberment
+     - Mummy: Bandage control bones (10-15) for unwrapping effects
+     - Tomb Raider: Facial rig for expressions and voice sync"
+
+##### Quadruped Rig (Cursed Hound)
+- "Design quadruped skeleton with:
+  1. Spine chain with proper forward/reverse kinematics
+  2. IK leg setup for accurate foot placement
+  3. Jaw rig with multiple control points
+  4. Tail bone chain with secondary motion control
+  5. Optimized for game engine with no more than 40 bones"
+
+##### Special Enemy Rigs
+- "Create custom rigs for unique enemies:
+  1. Guardian Statue: Segmented stone rig with breakable parts
+  2. Spectral Wraith: Cloth/fluid simulation-compatible rig
+  3. Pharaoh's Wrath (Final Boss): Transformable rig with multiple states
+     - Humanoid form
+     - Monstrous form with extended appendages
+     - Energy form with particle attachment points"
+
+### Animation State Requirements
+
+#### Player Animation States
+- "Create the following animation states for player character:
+  1. Locomotion Blend Tree:
+     - Idle (with subtle ambient motion)
+     - Walk (forward, backward, strafe left/right)
+     - Run (forward, backward, strafe left/right)
+     - Sprint (forward only)
+     - Crouch idle and movement set
+     - Jump (start, apex, land with recovery)
+     - Fall (from different heights)
+  
+  2. Combat Animation Set:
+     - Weapon-specific idles (6 variations for each weapon)
+     - Firing/attack animations (multiple variations per weapon)
+     - Reload animations (tactical and empty reload states)
+     - Weapon switching (holster/draw for each combination)
+     - Melee attack animations (3-5 variations)
+     - Hit reactions (from different directions)
+     - Death animations (5+ variations)
+  
+  3. Interaction Animations:
+     - Item pickup (one-handed and two-handed variations)
+     - Lever/switch activation
+     - Pushing/pulling objects
+     - Climbing ledges and ladders
+     - Examining artifacts
+     - Puzzle interaction specific animations"
+
+#### Enemy Animation States
+
+##### Common Enemy States (All Types)
+- "Create standard animation set required for all enemies:
+  1. Locomotion:
+     - Idle (3 variations with random timing)
+     - Patrol movement (relaxed alertness)
+     - Alert movement (combat-ready stance)
+     - Chase movement (aggressive pursuit)
+  
+  2. Combat:
+     - Attack animations (5-8 variations per enemy type)
+     - Special ability animations (unique to each enemy)
+     - Hit reactions (from different directions/weapons)
+     - Stagger/stun animations
+     - Death animations (5+ per enemy type)
+  
+  3. Special States:
+     - Spawn/awakening animations
+     - Dormant states (for statue/mummy)
+     - Alert triggers (noticing player)
+     - Search behavior patterns
+     - Retreat/tactical movement"
+
+##### Enemy-Specific Animation Sets
+- "Create unique animation sets for distinctive enemy behaviors:
+  1. Skeleton Warrior:
+     - Shield block and deflection animations
+     - Shield bash attack
+     - Sword combo attacks (3-5 sequences)
+     - Bone reassembly after partial destruction
+  
+  2. Mummy:
+     - Paralyzing grasp attack with reach
+     - Bandage unraveling during movement/damage
+     - Bandage whip long-range attack
+     - Miasma release special attack
+  
+  3. Tomb Raider:
+     - Cover system animations (enter, exit, peek)
+     - Grenade throwing with proper weight shift
+     - Dodge roll (all directions)
+     - Healing animation
+     - Calling for reinforcements gesture
+  
+  4. Guardian Statue:
+     - Awakening from dormant state
+     - Ground pound area attack
+     - Stone shard projectile throw
+     - Progressive damage states as pieces break away
+  
+  5. Cursed Hound:
+     - Pack coordination movements
+     - Pounce attack with distance variation
+     - Howl animation with effect trigger
+     - Stalking circle-strafe behavior
+  
+  6. Spectral Wraith:
+     - Wall phasing transition effects
+     - Teleportation disappear/reappear
+     - Ethereal touch attack
+     - Energy blast projection
+     - Fear aura activation"
+
+#### Boss-Specific Animation Requirements
+- "Create extensive animation sets for boss encounters:
+  1. Skeleton Captain:
+     - Command gestures for summoning minions
+     - Special combo attacks (5-7 sequences)
+     - Defensive stance with counterattack
+     - Phase transition animations
+  
+  2. Elemental Guardians:
+     - Element-specific attack animations (unique per guardian)
+     - Environmental interaction animations
+     - Combination attack with other guardians
+     - Defeat/energy transfer animation
+  
+  3. Pharaoh's Wrath (Final Boss):
+     - Transformation sequence between phases
+     - Ritual casting animations
+     - Reality-warping attack sequences
+     - Minion summoning gestures
+     - Ultimate attack choreography
+     - Defeat/containment sequence"
+
+### Environmental Animation Requirements
+- "Create technical specifications for environmental animations:
+  1. Puzzle Mechanisms:
+     - Articulated joint setup for moving parts
+     - Sequential animation triggers with proper pivot points
+     - Rigged internal components showing mechanical operation
+     - Material state changes for activation feedback
+  
+  2. Trap Systems:
+     - Triggering mechanism animations with physics properties
+     - Damage-dealing components with precise collision timing
+     - Reset sequences for repeatable traps
+     - Failed/jammed states for damaged traps
+  
+  3. Door/Gate Systems:
+     - Hierarchical bone structure for complex opening sequences
+     - Weight-appropriate timing and momentum
+     - Lock/unlock mechanism detail animations
+     - Partially broken/stuck states for damaged doors
+  
+  4. Destructible Environment:
+     - Fracture-ready mesh preparation with proper edge flow
+     - Support for real-time or pre-calculated destruction
+     - Progressive damage states before complete collapse
+     - Physics-ready rigging for dynamic interaction"
+
+### Cinematic Animation Requirements
+- "Create specifications for cinematic animation sequences:
+  1. Artifact Discovery:
+     - Character interaction with precise hand positioning
+     - Camera movement rig with focal point controls
+     - Environmental reaction sequence
+     - Facial animation for emotional response
+  
+  2. Boss Introductions:
+     - Environmental integration (emerging from sarcophagus, etc.)
+     - Character reaction shots with multiple camera angles
+     - Power demonstration sequence
+     - Real-time to cinematic transition rigging
+  
+  3. Temple Collapse:
+     - Sequential destruction rigging with trigger points
+     - Dynamic obstacle course animation
+     - Timing control for player navigation opportunity
+     - Dust and debris particle emitter attachment points
+     - Camera shake animation curves"
+
+### Technical Animation Requirements
+- "Implement technical animation features necessary for game integration:
+  1. Animation Blueprints:
+     - Blend tree structures for smooth transitions
+     - State machine layouts for each character type
+     - Locomotion systems with proper foot placement
+     - Ragdoll physics transition setup
+  
+  2. Performance Optimization:
+     - LOD (Level of Detail) animation systems
+     - Bone count optimization for distant characters
+     - Animation compression settings for memory efficiency
+     - Batched animation processing for groups of similar enemies
+  
+  3. Animation Reuse Strategy:
+     - Core animation library for shared movements
+     - Retargeting setup between similar character rigs
+     - Procedural animation layers for variety
+     - Modular approach to animation combinations
+  
+  4. Game Engine Integration:
+     - Root motion extraction for navigation system
+     - Animation event markers for sound/VFX triggering
+     - Hitbox/collision activation timing
+     - Weapon trail/effect attachment system
+     - Animation-driven physics interaction points"

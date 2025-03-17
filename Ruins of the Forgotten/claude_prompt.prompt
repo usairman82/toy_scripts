@@ -1,0 +1,139 @@
+Here's a detailed prompt you can use for an LLM to generate a **basic first-person shooter (FPS) game in Unity**, with all the necessary components such as **audio, graphics, game physics, level design, weapons, enemy behavior, and a story-driven progression**.
+
+---
+
+## **Prompt for LLM: Generate a First-Person Shooter Game in Unity**
+
+### **Game Title:** *Ruins of the Forgotten*
+
+### **Game Overview:**
+Develop a **first-person shooter (FPS)** (with optional third-person mode) in Unity. The game follows a **brave adventurer** exploring **ancient ruins**, battling mythological and stereotypical foes, and uncovering hidden secrets. The **goal** is to find the key in each level, unlock the exit, and progress through at least **five levels**. The game is **not gory**, but it is action-packed, featuring melee combat and a variety of firearms.
+
+---
+
+## **Key Features:**
+
+### **Gameplay Mechanics:**
+- **Perspective:** The player can switch between **first-person and third-person views**.
+- **Weapons:** Includes **melee weapons** (dagger, sword, staff) and **firearms** (pistol, machine gun, shotgun).
+- **Combat:** Enemies have **varying difficulties**, requiring strategic play.
+- **Exploration:** Each level contains **hidden rooms**, **lore scrolls**, and **collectibles**.
+- **Health System:** Players can find **bandages, herbs, or potions** to restore health.
+- **Interaction System:** Use **"E" to interact** with objects like **doors, loot, scrolls, and secret levers**.
+- **Physics:** Physics-based object interactions (pushing, breaking objects).
+- **Sound Design:** Footsteps, ambient ruin sounds, gunfire, enemy growls, and item pickups.
+
+---
+
+## **Storyline:**
+You are **Dr. Alexander Vaughn**, an intrepid archaeologist searching for the legendary **"Heart of Eternity"**, a relic lost within an **ancient ruined temple**. Legends speak of a **curse** guarding the ruins, manifesting in the form of **undead warriors, tomb raiders, and supernatural guardians**.
+
+Each level of the temple is **one step closer** to uncovering the artifact and escaping before you become **another lost soul**.
+
+---
+
+## **Enemy Types & Attributes:**
+| Enemy Type          | Description                                         | HP  | AP (Attack Power) | Speed | Special Ability |
+|---------------------|-----------------------------------------------------|----|----------------|------|----------------|
+| **Skeleton Warrior** | Armed with a sword and shield, slow-moving.       | 50 | 10             | Low  | Block attacks |
+| **Mummy**          | Wrapped in ancient cloth, deals heavy damage.      | 80 | 15             | Medium | Paralyzing grasp |
+| **Tomb Raider**    | Rogue thieves hunting for treasure. Armed with guns. | 60 | 20             | Fast | Rolls to dodge attacks |
+| **Guardian Statue** | Slow but heavily armored stone warrior.            | 150 | 25             | Low  | Immune to bullets, must use melee |
+| **Cursed Hound**   | Fast and aggressive, attacks in packs.             | 30 | 8              | Very Fast | Jump attack |
+| **Spectral Wraith** | Can phase through walls, hard to hit.              | 40 | 12             | Medium | Teleports unpredictably |
+
+---
+
+## **Weapons & Combat:**
+| Weapon Name    | Type     | Damage | Fire Rate | Ammo Capacity | Range | Special Ability |
+|---------------|---------|--------|----------|--------------|------|----------------|
+| **Dagger**    | Melee   | 15     | Fast     | N/A          | Short | Quick attack speed |
+| **Sword**     | Melee   | 25     | Medium   | N/A          | Medium | Blocks enemy attacks |
+| **Pistol**    | Firearm | 30     | Medium   | 12           | Medium | Precise shots |
+| **Shotgun**   | Firearm | 60     | Slow     | 6            | Short | Knockback enemies |
+| **Machine Gun** | Firearm | 20     | Very Fast | 30          | Long | High recoil |
+| **Ancient Staff** | Magic   | 40     | Slow     | 5 charges   | Long | Shoots magic bolts |
+
+---
+
+## **Level Design & Maps:**
+Each level should have **a distinct theme**, **enemies**, and **puzzle elements**.
+
+### **Level 1: The Entrance - "The Threshold of the Damned"**
+- **Theme:** A ruined stone entrance with crumbling pillars and eerie torches.
+- **Objective:** Find a way to unlock the ancient gates.
+- **Enemies:** Skeleton Warriors, Cursed Hounds.
+- **Map Features:** Hidden alcoves, broken bridges, puzzle switches.
+
+### **Level 2: The Hall of Kings - "The Whispering Tombs"**
+- **Theme:** A long corridor with crypts and trapped treasures.
+- **Objective:** Find the missing keystone to open the door.
+- **Enemies:** Mummies, Tomb Raiders.
+- **Map Features:** Traps (spikes, rolling boulders), collapsing floors.
+
+### **Level 3: The Shadow Maze - "Lost in Darkness"**
+- **Theme:** A labyrinth filled with eerie shadows and flickering torches.
+- **Objective:** Navigate the maze and locate the golden key.
+- **Enemies:** Spectral Wraiths, Guardian Statues.
+- **Map Features:** Puzzle rooms, hidden scrolls revealing hints.
+
+### **Level 4: The Inner Sanctum - "The Curse Awakens"**
+- **Theme:** A grand temple chamber where ancient murals tell a hidden story.
+- **Objective:** Solve an ancient puzzle to reveal the final key.
+- **Enemies:** Skeleton Warriors, Cursed Hounds, Guardian Statues.
+- **Map Features:** Trap-laden corridors, hidden treasure rooms.
+
+### **Level 5: The Heart of Eternity - "Final Confrontation"**
+- **Theme:** A mystical chamber where the relic is guarded.
+- **Objective:** Survive waves of enemies and escape with the artifact.
+- **Enemies:** All previous enemies, including a **final boss** (Pharaoh's Wrath).
+- **Map Features:** Dynamic lighting, collapsing structures, epic music.
+
+---
+
+## **Additional Features:**
+- **Collectible Scrolls & Books:** Provide lore and hints about the temple’s past.
+- **Hidden Rooms:** Easter eggs, artwork, and bonus treasure.
+- **Cutscenes:** Simple cinematic moments when unlocking major events.
+
+---
+
+## **Controls (PC):**
+- **WASD:** Move
+- **Mouse Move:** Look around
+- **Left Click:** Attack (Melee or Shoot)
+- **Right Click:** Aim (for firearms)
+- **E:** Interact (open doors, pick up objects)
+- **Shift:** Sprint
+- **Ctrl:** Crouch
+- **R:** Reload weapon
+
+---
+
+## **Technical Considerations:**
+- **Graphics:** Decent-quality, optimized for performance (not photorealistic).
+- **AI Behavior:** Enemies should patrol, chase players, and react dynamically.
+- **Physics:** Realistic movement, jumping, and object interactions.
+- **Audio:** Immersive ambient sounds, footsteps, growls, gunfire.
+
+---
+
+### **Final Output:**
+The LLM should generate:
+1. **Basic Unity Game Project** with **pre-defined maps** and **enemy behavior**.
+2. **C# scripts** for weapons, enemy AI, level interactions.
+3. **Pre-made 3D assets** or references for textures, models, and environment props.
+4. **Sound and Music files** (ambient ruins, combat sounds, footsteps).
+5. **Game Logic for Win/Loss Conditions** (finding the key, reaching the exit).
+
+---
+
+### **Extra Notes for the LLM:**
+- Generate **code for AI movement and behavior**.
+- Include **placeholder 3D models and textures** (Unity Asset Store or Procedural).
+- Provide **basic UI elements** (health bar, ammo counter, objectives).
+- Optimize for performance (avoid unnecessary calculations).
+
+---
+
+This prompt should give an LLM **everything needed** to generate a playable **FPS adventure game in Unity**, complete with **story, enemies, maps, gameplay mechanics, and immersive elements**. 🚀

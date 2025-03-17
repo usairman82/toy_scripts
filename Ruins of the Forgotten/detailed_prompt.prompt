@@ -1,0 +1,942 @@
+Comprehensive LLM Implementation Guide: "Ruins of the Forgotten" 3D FPS
+Game Title: Ruins of the Forgotten
+Game Overview:
+Develop a 3D first-person shooter (with optional third-person mode) featuring an archaeologist exploring ancient Egyptian-inspired ruins. The player must battle various mythological and stereotypical foes while seeking a legendary artifact. Each level requires finding a key to unlock the exit and progress through the temple's five distinct areas. The game features a balance of combat, exploration, and puzzle-solving in an atmospheric ancient setting.
+
+Core Gameplay Systems
+Player Systems:
+
+Movement & Controls:
+
+First/third-person perspective toggle
+WASD movement with physics-based locomotion
+Jumping, crouching, and sprinting capabilities
+Mouse/controller look with adjustable sensitivity
+Footstep sounds that vary by surface material
+
+
+Health System:
+
+Health bar with visual feedback when damaged
+Screen effects (vignette, blood splatter) when injured
+Regeneration after time without damage (optional)
+Collectible healing items (bandages, herbs, potions) with varying restoration amounts
+
+
+Inventory System:
+
+Equipment slots for weapons and key items
+Collectibles section for lore items and artifacts
+UI for item examination and description reading
+Quick-swap functionality for weapons
+
+
+Interaction System:
+
+Raycast-based interaction with highlighted objects
+"E" key (or equivalent) for interaction
+Context-sensitive prompts for different interactable objects
+Physics interaction with movable objects
+
+
+
+Combat Systems:
+
+Weapon Mechanics:
+
+Melee weapons with swing animations and collision detection
+Firearms with realistic recoil, reload animations, and ammo management
+Weapon switching with visual feedback
+Each weapon has unique properties:
+
+Dagger: Fast attack speed (15 damage, 2.5 attacks/sec, short range)
+Sword: Balanced with block ability (25 damage, 1.5 attacks/sec, medium range)
+Pistol: Precise shots (30 damage, 2 shots/sec, 12 ammo capacity)
+Shotgun: Close-range power (60 damage, 0.8 shots/sec, 6 ammo capacity)
+Machine Gun: Rapid fire (20 damage, 8 shots/sec, 30 ammo capacity)
+Ancient Staff: Magical attacks (40 damage, 1 shot/sec, 5 charges)
+
+
+
+
+Combat Feedback:
+
+Hit markers and damage numbers
+Sound effects for hits, misses, and critical strikes
+Particle effects for impacts (blood, stone chips, magical energy)
+Ragdoll physics for defeated enemies
+
+
+Enemy AI:
+
+Pathfinding using navigation mesh
+State machines with patrol, chase, attack, and search behaviors
+Line-of-sight and hearing detection systems
+Type-specific behaviors and abilities:
+
+Skeleton Warriors: Defensive with shield blocking
+Mummies: Slow but powerful with paralyzing grasp
+Tomb Raiders: Uses cover and flanking tactics
+Guardian Statues: Heavy, bulletproof attackers
+Cursed Hounds: Fast pack hunters that coordinate
+Spectral Wraiths: Teleporting, wall-phasing ghosts
+
+
+
+
+
+Level & Environment Systems:
+
+Level Structure:
+
+Each level has distinct visual theme and gameplay focus
+Entry area → Main challenges → Key location → Exit gate
+Mix of combat arenas, puzzle sections, and exploration areas
+Checkpoints for save points and respawning
+
+
+Interactive Elements:
+
+Doors (normal, locked, puzzle-based)
+Levers, pressure plates, and switches
+Movable objects for physics puzzles
+Breakable objects with loot or hidden passages
+Traps (spike pits, falling blocks, poison darts)
+
+
+Puzzle Systems:
+
+Symbol matching puzzles revealing hidden paths
+Lever sequence puzzles to unlock doors
+Light beam reflection puzzles
+Pressure plate timing challenges
+Collectible key items for special locks
+
+
+Environmental Effects:
+
+Dynamic lighting (torches, magical elements)
+Particle systems (dust, mist, falling debris)
+Ambient audio (wind, creaking, distant sounds)
+Weather effects where appropriate (sandstorms)
+Destructible elements with physics
+
+
+
+
+Detailed Level Designs
+Level 1: The Entrance - "The Threshold of the Damned"
+
+Visual Theme: Sandstone entrance hall with crumbling pillars, hieroglyphics, and scattered debris
+Lighting: Warm torchlight with shafts of sunlight from ceiling openings
+Main Objectives:
+
+Navigate through the entrance hall
+Find the hidden lever mechanism
+Locate the key in the guardian chamber
+Return to unlock the main gate
+
+
+Enemy Placement:
+
+3-4 Skeleton Warriors patrolling main corridors
+2-3 Cursed Hounds in side chambers
+1 mini-boss Skeleton Captain guarding the key
+
+
+Puzzles:
+
+Pillar alignment puzzle revealing hidden passage
+Hieroglyphic sequence to disable trap
+Weight distribution puzzle with movable statues
+
+
+Key Features:
+
+Tutorial area for basic mechanics
+Hidden chamber with weapon upgrade
+Collapsing bridge sequence
+Ancient wall paintings providing story context
+
+
+
+Level 2: The Hall of Kings - "The Whispering Tombs"
+
+Visual Theme: Long ceremonial hall with royal tombs, sarcophagi, and burial treasures
+Lighting: Dim blue-green magical lights, occasional torches
+Main Objectives:
+
+Navigate trapped tomb chambers
+Find missing keystone piece
+Defeat tomb guardians
+Unlock ceremonial door
+
+
+Enemy Placement:
+
+4-5 Mummies in individual tomb chambers
+3 Tomb Raiders searching for treasures
+2 Guardian Statues protecting key areas
+
+
+Puzzles:
+
+Sarcophagus lid sliding puzzle
+Royal seal collection to unlock passage
+Pressure plate sequence avoiding traps
+Sound-based puzzle with resonating gongs
+
+
+Key Features:
+
+Falling ceiling trap sequence
+Hidden treasure room with scrolls and artifacts
+Flooding chamber with time pressure
+Quicksand pits creating navigation challenges
+
+
+
+Level 3: The Shadow Maze - "Lost in Darkness"
+
+Visual Theme: Labyrinthine black stone corridors with minimal lighting and mirrored passages
+Lighting: Very dark with occasional blue flame sconces
+Main Objectives:
+
+Navigate the confusing maze
+Find and solve the symbol puzzles
+Locate the golden key
+Find the hidden exit
+
+
+Enemy Placement:
+
+4-6 Spectral Wraiths patrolling and phasing through walls
+2 Guardian Statues at key junctions
+Occasional Cursed Hounds in wider areas
+
+
+Puzzles:
+
+Symbol matching to reveal paths
+Light reflection puzzle using mirrors
+Sound navigation puzzle using distant cues
+Constellation alignment using ceiling patterns
+
+
+Key Features:
+
+Disorienting maze with similar-looking corridors
+Magical portals connecting distant areas
+Illusion walls that appear solid
+Cryptic wall writings providing navigation hints
+Magical compasses helping orientation
+
+
+
+Level 4: The Inner Sanctum - "The Curse Awakens"
+
+Visual Theme: Grand temple chamber with massive statues, ritual areas, and ancient technology
+Lighting: Mystical purple-blue energy sources with ceremonial fire pits
+Main Objectives:
+
+Activate the four elemental altars
+Defeat the temple guardians
+Find the master key artifact
+Unlock the inner chamber door
+
+
+Enemy Placement:
+
+Mixed groups of all previous enemy types
+Elite versions with enhanced abilities
+Mini-boss elemental guardians at each altar
+
+
+Puzzles:
+
+Elemental activation sequence (fire, water, earth, air)
+Rotating room mechanism changing layout
+Musical sequence on ancient instrument
+Counterweight system to access upper levels
+
+
+Key Features:
+
+Multiple elevation levels with vertical gameplay
+Magical energy flows creating hazards
+Time-limited sequences requiring speed
+Ancient mechanism room showing temple workings
+Hidden chamber revealing artifact backstory
+
+
+
+Level 5: The Heart of Eternity - "Final Confrontation"
+
+Visual Theme: Mystical inner chamber with cosmic energy, floating elements, and reality distortion
+Lighting: Ethereal glow with shifting colors and energy arcs
+Main Objectives:
+
+Confront the final guardian
+Solve the Heart of Eternity puzzle
+Claim the artifact
+Escape the collapsing temple
+
+
+Enemy Placement:
+
+Pharaoh's Wrath (final boss) with multiple phases
+Summoned minions of all previous types
+Environmental hazards and magical attacks
+
+
+Puzzles:
+
+Final artifact alignment puzzle
+Energy redirection to weaken boss
+Portal activation for escape route
+Time manipulation to solve impossible sequences
+
+
+Key Features:
+
+Multi-phase boss battle with changing mechanics
+Reality-bending visual effects
+Temple collapse escape sequence
+Culmination of story elements
+Epic cinematics for artifact retrieval and escape
+
+
+
+
+Enemy Specification Details
+1. Skeleton Warrior
+
+Visual Design: Animated skeleton in partial ancient armor with sword and shield
+Health: 50 HP
+Damage: 10 per hit
+Movement Speed: Slow (3 units/second)
+Attack Patterns:
+
+Basic sword swing (2-hit combo)
+Shield bash (knockback effect)
+Defensive stance (reduces damage by 50% from front)
+
+
+AI Behavior:
+
+Patrols assigned route
+Engages at medium range (5 units)
+Uses shield defensively when health below 50%
+Occasionally backs away to defensive position
+
+
+Special Mechanics:
+
+Shield can block projectiles
+Headshots deal critical damage
+Bones scatter when defeated
+
+
+
+2. Mummy
+
+Visual Design: Bandage-wrapped humanoid with partially exposed dried flesh
+Health: 80 HP
+Damage: 15 per hit
+Movement Speed: Very slow (2 units/second)
+Attack Patterns:
+
+Grasping attack (medium damage)
+Paralyzing grasp (freezes player for 3 seconds)
+Bandage whip (long-range attack)
+
+
+AI Behavior:
+
+Lurks in dark areas
+Slow persistent pursuit
+Won't retreat even at low health
+Emits warning moans before attacking
+
+
+Special Mechanics:
+
+Unraveling bandages as damaged
+Fire attacks cause additional damage
+Occasionally releases poisonous miasma
+
+
+
+3. Tomb Raider
+
+Visual Design: Human explorer/treasure hunter with practical gear and weapons
+Health: 60 HP
+Damage: 20 per shot
+Movement Speed: Fast (5 units/second)
+Attack Patterns:
+
+Pistol fire (accurate, medium damage)
+Grenade toss (area effect, long cooldown)
+Dodge roll (evades attacks)
+
+
+AI Behavior:
+
+Takes cover behind objects
+Flanks player when possible
+Retreats to heal when health below 30%
+Communicates with other raiders
+
+
+Special Mechanics:
+
+Uses med-kits to heal
+Can call for reinforcements
+Drops ammo when defeated
+
+
+
+4. Guardian Statue
+
+Visual Design: Large animated stone statue with Egyptian deity features
+Health: 150 HP
+Damage: 25 per hit
+Movement Speed: Very slow (1.5 units/second)
+Attack Patterns:
+
+Heavy smash (high damage, slow windup)
+Ground pound (area effect, knockback)
+Stone shard projectile (ranged attack)
+
+
+AI Behavior:
+
+Initially dormant until approached
+Direct, relentless approach
+No retreat behavior
+Targets closest threat
+
+
+Special Mechanics:
+
+Immune to bullets (requires melee or magic)
+Temporarily staggered by heavy attacks
+Crumbles into pieces when defeated
+
+
+
+5. Cursed Hound
+
+Visual Design: Skeletal/mummified canine with glowing eyes and exposed ribs
+Health: 30 HP
+Damage: 8 per bite
+Movement Speed: Very fast (7 units/second)
+Attack Patterns:
+
+Bite combo (rapid small damage)
+Leap attack (gap closer, knockdown)
+Howl (buffs nearby hounds)
+
+
+AI Behavior:
+
+Hunts in packs
+Circles player looking for opening
+Some attack while others flank
+Retreats briefly after taking damage
+
+
+Special Mechanics:
+
+Pack behavior increases damage when multiple hounds present
+Howl alerts other enemies in area
+Can jump over obstacles
+
+
+
+6. Spectral Wraith
+
+Visual Design: Translucent ghostly figure with flowing robes and glowing eyes
+Health: 40 HP
+Damage: 12 per touch
+Movement Speed: Variable (0-6 units/second)
+Attack Patterns:
+
+Ethereal touch (drains health)
+Energy blast (ranged attack)
+Fear aura (blurs vision temporarily)
+
+
+AI Behavior:
+
+Phases through walls to ambush
+Teleports when taking damage
+Becomes more aggressive at low health
+Retreats temporarily after attacking
+
+
+Special Mechanics:
+
+Partially transparent, harder to see
+Can phase through solid objects
+Vulnerable when attacking
+Dissipates into energy when defeated
+
+
+
+
+Weapon System Details
+Melee Weapons
+1. Dagger
+
+Statistics:
+
+Damage: 15 per hit
+Attack Speed: 2.5 attacks per second
+Range: 2 meters
+
+
+Mechanics:
+
+Fast combo attacks (up to 3 hits)
+Quick ready/unready animation
+No stamina consumption
+25% chance for bleeding effect (additional damage over time)
+
+
+Visual Design:
+
+Ancient ceremonial dagger with hieroglyphic inscriptions
+Gold/brass handle with Egyptian motifs
+Visual trail effect during swings
+Small particle effects on successful hits
+
+
+
+2. Sword
+
+Statistics:
+
+Damage: 25 per hit
+Attack Speed: 1.5 attacks per second
+Range: 2.5 meters
+
+
+Mechanics:
+
+Medium-speed attacks with follow-through
+Can block incoming attacks (reduces damage by 50%)
+Charged attack (hold button) for stronger strike
+Wider hit arc than dagger
+
+
+Visual Design:
+
+Ancient bronze-colored sword with curved blade
+Ornate hilt with scarab or ankh motif
+Subtle glow on blade edge
+Sparks and impact effects when blocking
+
+
+
+Ranged Weapons
+3. Pistol
+
+Statistics:
+
+Damage: 30 per shot
+Fire Rate: 2 shots per second
+Ammo Capacity: 12 rounds
+Effective Range: 50 meters
+
+
+Mechanics:
+
+Medium accuracy with slight spread
+Quick reload animation (1.2 seconds)
+Moderate recoil pattern
+No damage falloff with distance
+
+
+Visual Design:
+
+Antique-looking semi-automatic with brass/bronze frame
+Egyptian symbols etched on barrel and grip
+Visible hammer and slide movement
+Muzzle flash and ejected shell effects
+
+
+
+4. Shotgun
+
+Statistics:
+
+Damage: 60 per shot (8 pellets)
+Fire Rate: 0.8 shots per second
+Ammo Capacity: 6 shells
+Effective Range: 15 meters
+
+
+Mechanics:
+
+Wide spread with multiple pellets
+Significant damage falloff at distance
+Strong knockback effect on enemies
+Slow reload animation (shells loaded individually)
+
+
+Visual Design:
+
+Double-barrel break-action with ornate engravings
+Weathered wood stock with metal reinforcements
+Heavy visual recoil animation
+Large muzzle flash and smoke effects
+
+
+
+5. Machine Gun
+
+Statistics:
+
+Damage: 20 per shot
+Fire Rate: 8 shots per second
+Ammo Capacity: 30 rounds
+Effective Range: 40 meters
+
+
+Mechanics:
+
+High rate of fire with increasing spread during sustained fire
+Moderate damage per bullet with high DPS
+Longer reload animation (2.5 seconds)
+Significant recoil requiring compensation
+
+
+Visual Design:
+
+Steampunk/ancient hybrid design with copper/brass elements
+Visible drum magazine with decorative elements
+Mechanical parts that move during firing
+Tracer effects every fifth round
+
+
+
+6. Ancient Staff
+
+Statistics:
+
+Damage: 40 per shot
+Fire Rate: 1 shot per second
+Ammo Capacity: 5 charges (regenerates over time)
+Effective Range: 60 meters
+
+
+Mechanics:
+
+Energy projectiles with slight homing ability
+Charged shot (hold button) for increased damage
+No reloading, but charges regenerate after depletion
+Area effect damage at impact point
+
+
+Visual Design:
+
+Wooden staff with glowing crystal or orb at top
+Egyptian deity head (Anubis/Horus) as decorative element
+Magical runes that glow when charging
+Energy beam visual effect with particle trail
+
+
+
+
+Puzzle Types and Implementations
+1. Symbol Matching Puzzles
+
+Mechanic: Find matching symbols throughout the level and activate them in the correct order
+Implementation:
+
+Symbols etched on walls or on interactable objects
+Visual feedback when symbols are matched correctly
+Wrong matches may trigger traps or reset the puzzle
+Solution hints found in scrolls or environmental clues
+
+
+Examples:
+
+Matching animal hieroglyphics to unlock a hidden door
+Aligning constellation patterns on a ceiling mechanism
+Finding symbol pairs hidden throughout a maze area
+
+
+
+2. Pressure Plate Sequences
+
+Mechanic: Step on pressure plates in specific order or pattern to trigger mechanisms
+Implementation:
+
+Plates embedded in floor with subtle visual differences
+Plate activation may be timed, requiring quick movement
+Some plates require weighted objects to remain activated
+Visual or audio cues indicate correct activation
+
+
+Examples:
+
+Reproducing a musical sequence by stepping on tonal plates
+Activating plates in order of Egyptian dynasties (clues on walls)
+Weighted statue placement on trigger points
+
+
+
+3. Light and Mirror Puzzles
+
+Mechanic: Direct light beams to specific targets using movable mirrors
+Implementation:
+
+Light sources (magical crystals, sunbeams through openings)
+Rotatable mirror objects that reflect light
+Target sensors that activate when light hits them
+Multiple mirrors may need precise alignment
+
+
+Examples:
+
+Illuminating darkened pathways by redirecting light
+Activating power crystals by focusing sunlight
+Creating shadow patterns that match wall symbols
+
+
+
+4. Mechanical Sequence Puzzles
+
+Mechanic: Manipulate mechanical devices in correct sequence to unlock passages
+Implementation:
+
+Interactive levers, wheels, or dials
+Visual feedback showing mechanism state
+Progressive unlocking of components
+May require timing or synchronization
+
+
+Examples:
+
+Ancient water flow system requiring proper valve sequencing
+Clockwork mechanism with interlocking gears
+Rotating room sections to align pathways
+
+
+
+5. Collection and Placement Puzzles
+
+Mechanic: Find scattered objects and place them in correct locations
+Implementation:
+
+Distinctive collectible items with obvious "socket" locations
+Items added to inventory when collected
+Placement interaction at destination points
+Complete set triggers mechanism or reveals secret
+
+
+Examples:
+
+Finding scattered statue pieces to reassemble
+Collecting ceremonial items for altar placement
+Gathering ancient coins for a tribute mechanism
+
+
+
+
+Audio Design Specification
+Ambient Audio
+
+Level-Specific Atmosphere:
+
+Level 1: Wind through columns, distant sand shifting, occasional stone crumbling
+Level 2: Whispers, distant moans, ceremonial chants, tomb echoes
+Level 3: Disorienting whispers, spatial distortion sounds, ethereal hums
+Level 4: Low magical thrumming, energy pulses, ancient machinery
+Level 5: Reality-bending sounds, cosmic energy, temporal distortions
+
+
+Environmental Sound Emitters:
+
+Torches: Crackling fire, occasional pops
+Water areas: Dripping, flowing, splashing
+Sand areas: Shifting, pouring, wind-blown particles
+Magical elements: Humming, pulsing, crackling energy
+
+
+
+Character Audio
+
+Player Sounds:
+
+Footsteps (varied by surface: stone, sand, water, wood)
+Breathing (normal, exerted, injured states)
+Equipment rattling during movement
+Effort sounds during jumping, climbing, attacking
+
+
+Enemy-Specific Sounds:
+
+Skeleton: Bone rattling, sword scraping, shield impacts
+Mummy: Bandage rustling, muffled moans, rasping breath
+Tomb Raider: Human voices, equipment jingling, tactical commands
+Guardian Statue: Stone grinding, heavy footsteps, earth-shaking impacts
+Cursed Hound: Growls, howls, bone-crushing bites, panting
+Spectral Wraith: Ethereal whispers, energy fluctuations, haunting cries
+
+
+
+Weapon Audio
+
+Melee Weapons:
+
+Dagger: Quick swishes, metal impacts, blade withdrawal
+Sword: Heavier swings, metal-on-metal clangs, blocking impacts
+
+
+Firearms:
+
+Pistol: Sharp crack, mechanical slide action, shell ejection
+Shotgun: Powerful boom, shell loading clicks, break-action hinge
+Machine Gun: Rapid fire reports, mechanical cycling, magazine insertion
+
+
+Magical Weapons:
+
+Staff: Energy charging hum, discharge blast, impact resonance
+Magical effects: Energy fields, barrier sounds, power fluctuations
+
+
+
+UI and Feedback Audio
+
+Interface Sounds:
+
+Menu navigation clicks
+Inventory item selection
+Map opening/closing
+Objective updates with subtle notification
+
+
+Gameplay Feedback:
+
+Damage taken indicator
+Low health warning pulse
+Successful hit confirmation
+Puzzle element interaction
+Item pickup chimes (varied by importance)
+
+
+
+Music System
+
+Adaptive Score:
+
+Exploration theme (ambient, mysterious, subtle)
+Combat music (intensifies based on threat level)
+Puzzle-solving ambience (thoughtful, intriguing)
+Boss encounter themes (dramatic, unique per major encounter)
+
+
+Musical Motifs:
+
+Character theme with variations throughout game
+Artifact/mystery motif that develops as story progresses
+Enemy faction themes that blend during mixed encounters
+Victory and discovery fanfares for key moments
+
+
+
+
+Visual Effects System
+Environment Effects
+
+Atmospheric Effects:
+
+Dust particles in air beams
+Fog/mist in low areas
+Heat distortion near fire
+Magical energy wisps in mystical areas
+
+
+Surface and Material Effects:
+
+Footprints in sand
+Water ripples and reflections
+Disturbed dust when objects move
+Ancient material degradation (crumbling, erosion)
+
+
+Lighting Effects:
+
+Torch flickering
+God rays through openings
+Shadow movement and interaction
+Magical light sources with unique properties
+
+
+
+Combat Effects
+
+Weapon Effects:
+
+Muzzle flashes for firearms
+Bullet trails and impacts
+Melee weapon trails and impacts
+Magical projectile effects
+
+
+Damage Visualization:
+
+Enemy hit reactions with appropriate effects
+Blood splatter for organic enemies
+Stone chips for statue enemies
+Ethereal disruption for spectral enemies
+
+
+Special Ability Effects:
+
+Mummy's paralyzing grasp (energy tendrils)
+Wraith's teleportation (dissolve/reform)
+Guardian's ground pound (shockwave)
+Staff charging and discharge
+
+
+
+UI and Feedback Effects
+
+Player Feedback:
+
+Damage vignette when injured
+Healing visualization
+Low health pulse effect
+Death sequence effect
+
+
+Interaction Feedback:
+
+Object highlight on hover
+Interaction progress indicators
+Puzzle solution visualization
+Item collection sparkle
+
+
+
+Cinematic Effects
+
+Scripted Moments:
+
+Artifact discovery moments
+Environment destruction sequences
+Boss introductions
+Level transition effects
+
+
+Quality Enhancements:
+
+Depth of field for cinematics
+Motion blur for fast movement
+Screen-space reflections for key surfaces
+Temporal effects for magical elements
