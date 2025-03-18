@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Background Circle -->
+  <circle cx="40" cy="40" r="40" fill="rgba(0, 0, 0, 0.5)" />
+  <circle cx="40" cy="40" r="35" fill="rgba(50, 50, 50, 0.7)" stroke="rgba(255, 255, 255, 0.5)" stroke-width="2" />
+  
+  <!-- Sound Icon (can be toggled in game code) -->
+  <g class="sound-on">
+    <!-- Speaker Symbol -->
+    <path d="M25,30 L35,20 L35,60 L25,50 L15,50 L15,30 Z" fill="white" />
+    
+    <!-- Sound Waves -->
+    <path d="M45,25 Q55,40 45,55" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" />
+    <path d="M50,20 Q65,40 50,60" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" />
+  </g>
+  
+  <!-- For the muted state, we'll hide the waves and add a slash in the game code -->
+</svg>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neogalaxia</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Add pixelated font support */
+        @font-face {
+            font-family: 'Press Start 2P';
+            src: url('https://fonts.gstatic.com/s/pressstart2p/v14/e3t4euO8T-267oIAQAu6jDQyK3nVivNm4I81.woff2') format('woff2');
+        }
+        
+        /* Font preloader to prevent FOUT (Flash of Unstyled Text) */
+        .font-preloader {
+            font-family: 'Press Start 2P';
+            position: absolute;
+            left: -1000px;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Font preloader -->
+    <div class="font-preloader">.</div>
+    
+    <div id="game-container"></div>
+    
+    <!-- Load Phaser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
+    
+    <!-- Load game scripts -->
+    <script src="js/scenes/BootScene.js"></script>
+    <script src="js/scenes/MenuScene.js"></script>
+    <script src="js/scenes/GameScene.js"></script>
+    <script src="js/scenes/GameOverScene.js"></script>
+    <script src="js/objects/Player.js"></script>
+    <script src="js/objects/Enemy.js"></script>
+    <script src="js/objects/EnemyManager.js"></script>
+    <script src="js/objects/Bullet.js"></script>
+    <script src="js/objects/PowerUp.js"></script>
+    <script src="js/objects/UIManager.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
