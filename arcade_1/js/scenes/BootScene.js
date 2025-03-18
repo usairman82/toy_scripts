@@ -45,9 +45,20 @@ class BootScene extends Phaser.Scene {
         this.load.image('enemy_2', 'assets/sprites/enemy_2.png');
         this.load.image('enemy_boss', 'assets/sprites/enemy_boss.png');
         
-        // Bullet sprites
+        // Bullet sprites with explicit max dimensions
         this.load.image('player_bullet', 'assets/sprites/player_bullet.png');
         this.load.image('enemy_bullet', 'assets/sprites/enemy_bullet.png');
+        
+        // Add debug logging for bullet sprite dimensions
+        this.load.on('filecomplete-image-player_bullet', (key, type, data) => {
+            console.log(`Loaded player bullet sprite: ${data.width}x${data.height}`);
+            this.validateSpriteSize(key, data, 30, 30);
+        });
+        
+        this.load.on('filecomplete-image-enemy_bullet', (key, type, data) => {
+            console.log(`Loaded enemy bullet sprite: ${data.width}x${data.height}`);
+            this.validateSpriteSize(key, data, 30, 30);
+        });
         
         // Explosion spritesheet
         this.load.spritesheet('explosion', 'assets/sprites/explosion_spritesheet.png', {
@@ -110,8 +121,107 @@ class BootScene extends Phaser.Scene {
         // Generate silent audio fallbacks for all sound effects
         this.generateSilentAudioFallbacks();
         
+        // Ensure bullet textures are properly sized
+        this.ensureBulletTexturesAreProperlyScaled();
+        
         // Start the main menu scene
         this.scene.start('MenuScene');
+    }
+    
+    /**
+     * Validates that a sprite's dimensions are within acceptable limits
+     * @param {string} key - The texture key
+     * @param {object} data - The image data
+     * @param {number} maxWidth - Maximum allowed width
+     * @param {number} maxHeight - Maximum allowed height
+     */
+    validateSpriteSize(key, data, maxWidth, maxHeight) {
+        if (data.width > maxWidth || data.height > maxHeight) {
+            console.warn(
+                `Sprite '${key}' dimensions (${data.width}x${data.height}) ` +
+                `exceed recommended maximum (${maxWidth}x${maxHeight})`
+            );
+        }
+    }
+    
+    /**
+     * Ensures bullet textures are properly scaled if they're too large
+     */
+    ensureBulletTexturesAreProperlyScaled() {
+        // Maximum dimensions for bullet sprites (in pixels)
+        const MAX_BULLET_WIDTH = 30;
+        const MAX_BULLET_HEIGHT = 30;
+        
+        // Check and fix player bullet texture
+        this.scaleTextureIfNeeded('player_bullet', MAX_BULLET_WIDTH, MAX_BULLET_HEIGHT);
+        
+        // Check and fix enemy bullet texture
+        this.scaleTextureIfNeeded('enemy_bullet', MAX_BULLET_WIDTH, MAX_BULLET_HEIGHT);
+    }
+    
+    /**
+     * Scales a texture if it exceeds maximum dimensions
+     * @param {string} key - The texture key
+     * @param {number} maxWidth - Maximum allowed width
+     * @param {number} maxHeight - Maximum allowed height
+     */
+    scaleTextureIfNeeded(key, maxWidth, maxHeight) {
+        try {
+            // Skip if texture doesn't exist
+            if (!this.textures.exists(key)) {
+                console.warn(`Texture '${key}' not found for scaling check`);
+                return;
+            }
+            
+            const frame = this.textures.getFrame(key);
+            if (!frame) return;
+            
+            const width = frame.width;
+            const height = frame.height;
+            
+            // Log the original dimensions
+            console.log(`Checking texture '${key}': ${width}x${height}`);
+            
+            // If dimensions are acceptable, no need to scale
+            if (width <= maxWidth && height <= maxHeight) {
+                return;
+            }
+            
+            console.warn(
+                `Texture '${key}' is too large (${width}x${height}). ` +
+                `Creating scaled version.`
+            );
+            
+            // Calculate scale factor to fit within max dimensions
+            const scaleX = maxWidth / width;
+            const scaleY = maxHeight / height;
+            const scale = Math.min(scaleX, scaleY);
+            
+            // Create a new scaled texture
+            const newKey = `${key}_scaled`;
+            const newWidth = Math.floor(width * scale);
+            const newHeight = Math.floor(height * scale);
+            
+            // Create a new texture using the render texture
+            const rt = this.make.renderTexture({
+                width: newWidth,
+                height: newHeight
+            }, true);
+            
+            rt.draw(key, 0, 0, newWidth, newHeight);
+            rt.saveTexture(newKey);
+            
+            // Replace the original texture reference with the scaled version
+            this.textures.remove(key);
+            this.textures.addKey(key, this.textures.get(newKey));
+            
+            console.log(
+                `Created scaled texture for '${key}': ` +
+                `${width}x${height} → ${newWidth}x${newHeight}`
+            );
+        } catch (error) {
+            console.error(`Error scaling texture '${key}':`, error);
+        }
     }
     
     generateSilentAudioFallbacks() {

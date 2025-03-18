@@ -123,18 +123,26 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
         // Bullet speed scales with level to make early levels easier
         const speedMultiplier = Math.min(1, 0.5 + (scene.level / 20));
         
+        // Validate bullet creation parameters
+        this.validateBulletParams();
+        
         // Create bullets based on enemy type
         switch (this.type) {
             case 'basic':
                 // Single bullet straight down, slower in early levels
-                new Bullet(scene, this.x, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier);
+                this.createEnemyBullet(
+                    this.x, 
+                    this.y + 20, 
+                    'enemy_bullet', 
+                    'down', 
+                    150 * speedMultiplier
+                );
                 break;
                 
             case 'fast':
                 // Single bullet with slight randomness, only on higher levels add angle
                 const angleOffset = scene.level > 3 ? Phaser.Math.Between(-20, 20) : 0;
-                new Bullet(
-                    scene, 
+                this.createEnemyBullet(
                     this.x, 
                     this.y + 20, 
                     'enemy_bullet', 
@@ -146,18 +154,100 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
                 
             case 'boss':
                 // Fewer bullets in early levels
-                new Bullet(scene, this.x, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier);
+                this.createEnemyBullet(
+                    this.x, 
+                    this.y + 20, 
+                    'enemy_bullet', 
+                    'down', 
+                    150 * speedMultiplier
+                );
                 
                 // Only add side bullets in higher levels
                 if (scene.level >= 5) {
-                    new Bullet(scene, this.x - 15, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier, -15);
-                    new Bullet(scene, this.x + 15, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier, 15);
+                    this.createEnemyBullet(
+                        this.x - 15, 
+                        this.y + 20, 
+                        'enemy_bullet', 
+                        'down', 
+                        150 * speedMultiplier, 
+                        -15
+                    );
+                    this.createEnemyBullet(
+                        this.x + 15, 
+                        this.y + 20, 
+                        'enemy_bullet', 
+                        'down', 
+                        150 * speedMultiplier, 
+                        15
+                    );
                 }
                 break;
         }
         
         // Play shooting sound - safely wrapped
         this.playShootSound();
+    }
+    
+    /**
+     * Creates an enemy bullet with validation
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} texture - Bullet texture key
+     * @param {string} direction - Direction of bullet movement
+     * @param {number} speed - Speed of the bullet
+     * @param {number} angle - Optional angle offset
+     * @returns {Bullet} The created bullet instance
+     */
+    createEnemyBullet(x, y, texture, direction, speed, angle = 0) {
+        // Validate parameters
+        if (!this.scene || !this.scene.physics) {
+            console.error("Cannot create bullet: scene or physics not available");
+            return null;
+        }
+        
+        // Ensure texture exists
+        if (!texture || !this.scene.textures.exists(texture)) {
+            console.warn(`Bullet texture '${texture}' not found, using fallback`);
+            texture = 'enemy_bullet'; // Fallback to default
+        }
+        
+        // Validate position is within game bounds
+        const gameWidth = this.scene.cameras.main.width;
+        const gameHeight = this.scene.cameras.main.height;
+        
+        if (x < 0 || x > gameWidth || y < 0 || y > gameHeight) {
+            console.warn(`Bullet position out of bounds: ${x},${y}`);
+            // Clamp to valid position
+            x = Math.max(0, Math.min(x, gameWidth));
+            y = Math.max(0, Math.min(y, gameHeight));
+        }
+        
+        // Create the bullet with validated parameters
+        try {
+            return new Bullet(this.scene, x, y, texture, direction, speed, angle);
+        } catch (error) {
+            console.error("Error creating bullet:", error);
+            return null;
+        }
+    }
+    
+    /**
+     * Validates that all required bullet parameters are available
+     */
+    validateBulletParams() {
+        // Check if Bullet class is available
+        if (typeof Bullet !== 'function') {
+            console.error("Bullet class not found");
+            return false;
+        }
+        
+        // Check if enemy_bullet texture is loaded
+        if (!this.scene.textures.exists('enemy_bullet')) {
+            console.warn("enemy_bullet texture not found");
+            return false;
+        }
+        
+        return true;
     }
     
     playShootSound() {
