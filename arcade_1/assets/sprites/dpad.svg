@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="100" fill="rgba(0, 0, 0, 0.3)" />
+  
+  <!-- Outer Ring -->
+  <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255, 255, 255, 0.5)" stroke-width="2" />
+  
+  <!-- Center Circle -->
+  <circle cx="100" cy="100" r="25" fill="rgba(255, 255, 255, 0.2)" stroke="#ffffff" stroke-width="2" />
+  
+  <!-- Left Button -->
+  <g class="button-left">
+    <path d="M40,100 L75,75 L75,125 Z" fill="rgba(255, 255, 255, 0.7)" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  
+  <!-- Right Button -->
+  <g class="button-right">
+    <path d="M160,100 L125,75 L125,125 Z" fill="rgba(255, 255, 255, 0.7)" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  
+  <!-- Up Button -->
+  <g class="button-up">
+    <path d="M100,40 L75,75 L125,75 Z" fill="rgba(255, 255, 255, 0.7)" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  
+  <!-- Down Button -->
+  <g class="button-down">
+    <path d="M100,160 L75,125 L125,125 Z" fill="rgba(255, 255, 255, 0.7)" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  
+  <!-- Highlight Zones (for better visual feedback) -->
+  <circle cx="60" cy="100" r="8" fill="rgba(255, 255, 255, 0.3)" />
+  <circle cx="140" cy="100" r="8" fill="rgba(255, 255, 255, 0.3)" />
+  <circle cx="100" cy="60" r="8" fill="rgba(255, 255, 255, 0.3)" />
+  <circle cx="100" cy="140" r="8" fill="rgba(255, 255, 255, 0.3)" />
+</svg>

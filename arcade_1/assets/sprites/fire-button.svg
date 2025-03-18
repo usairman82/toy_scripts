@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!-- Outer Circle with Glow Effect -->
+  <circle cx="60" cy="60" r="60" fill="rgba(255, 0, 0, 0.2)" />
+  <circle cx="60" cy="60" r="55" fill="rgba(255, 0, 0, 0.4)" />
+  
+  <!-- Inner Circle -->
+  <circle cx="60" cy="60" r="45" fill="rgba(255, 0, 0, 0.6)" stroke="#ffffff" stroke-width="2" />
+  
+  <!-- FIRE Text -->
+  <text x="60" y="65" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle">FIRE</text>
+  
+  <!-- Small decorative triangles to suggest "fire" -->
+  <path d="M60,25 L50,40 L70,40 Z" fill="rgba(255, 255, 255, 0.8)" />
+  <path d="M45,40 L35,55 L55,55 Z" fill="rgba(255, 255, 255, 0.6)" />
+  <path d="M75,40 L65,55 L85,55 Z" fill="rgba(255, 255, 255, 0.6)" />
+</svg>
