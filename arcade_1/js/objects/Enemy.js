@@ -16,16 +16,17 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
         // Set initial velocity based on type
         switch (type) {
             case 'basic':
-                // Basic enemies move in formation
+                // Basic enemies move in formation (no velocity)
                 this.setVelocity(0, 0);
                 break;
             case 'fast':
-                // Fast enemies move in zigzag pattern
-                this.setVelocity(Phaser.Math.Between(-50, 50), Phaser.Math.Between(50, 100));
+                // Fast enemies move in zigzag pattern - but slower at first
+                // Reduced velocity to prevent them from moving too erratically
+                this.setVelocity(Phaser.Math.Between(-30, 30), Phaser.Math.Between(30, 50));
                 break;
             case 'boss':
-                // Boss enemies move slower but are more dangerous
-                this.setVelocity(Phaser.Math.Between(-30, 30), Phaser.Math.Between(20, 40));
+                // Boss enemies move slower
+                this.setVelocity(Phaser.Math.Between(-20, 20), Phaser.Math.Between(10, 20));
                 break;
         }
         
@@ -39,15 +40,18 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
     
     getFireDelay() {
         // Different enemy types have different fire rates
+        // Scale with game level to make early levels easier
+        const levelMultiplier = Math.max(1, 3 - Math.floor(this.scene.level / 5));
+        
         switch (this.type) {
             case 'basic':
-                return Phaser.Math.Between(2000, 4000);
+                return Phaser.Math.Between(2000, 4000) * levelMultiplier;
             case 'fast':
-                return Phaser.Math.Between(1000, 2000);
+                return Phaser.Math.Between(1500, 3000) * levelMultiplier;
             case 'boss':
-                return Phaser.Math.Between(800, 1500);
+                return Phaser.Math.Between(1000, 2000) * levelMultiplier;
             default:
-                return 3000;
+                return 3000 * levelMultiplier;
         }
     }
     
@@ -116,31 +120,39 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
         // Check if player is still active
         if (!scene.player.active) return;
         
+        // Bullet speed scales with level to make early levels easier
+        const speedMultiplier = Math.min(1, 0.5 + (scene.level / 20));
+        
         // Create bullets based on enemy type
         switch (this.type) {
             case 'basic':
-                // Single bullet straight down
-                new Bullet(scene, this.x, this.y + 20, 'enemy_bullet', 'down', 200);
+                // Single bullet straight down, slower in early levels
+                new Bullet(scene, this.x, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier);
                 break;
                 
             case 'fast':
-                // Single bullet with slight randomness
+                // Single bullet with slight randomness, only on higher levels add angle
+                const angleOffset = scene.level > 3 ? Phaser.Math.Between(-20, 20) : 0;
                 new Bullet(
                     scene, 
                     this.x, 
                     this.y + 20, 
                     'enemy_bullet', 
                     'down', 
-                    250, 
-                    Phaser.Math.Between(-30, 30)
+                    180 * speedMultiplier, 
+                    angleOffset
                 );
                 break;
                 
             case 'boss':
-                // Multiple bullets in spread pattern
-                new Bullet(scene, this.x, this.y + 20, 'enemy_bullet', 'down', 180);
-                new Bullet(scene, this.x - 15, this.y + 20, 'enemy_bullet', 'down', 180, -20);
-                new Bullet(scene, this.x + 15, this.y + 20, 'enemy_bullet', 'down', 180, 20);
+                // Fewer bullets in early levels
+                new Bullet(scene, this.x, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier);
+                
+                // Only add side bullets in higher levels
+                if (scene.level >= 5) {
+                    new Bullet(scene, this.x - 15, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier, -15);
+                    new Bullet(scene, this.x + 15, this.y + 20, 'enemy_bullet', 'down', 150 * speedMultiplier, 15);
+                }
                 break;
         }
         

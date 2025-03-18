@@ -35,10 +35,12 @@ class EnemyManager {
         // Adjust difficulty based on level
         this.adjustDifficulty(level);
         
-        // Determine enemy distribution
-        const basicEnemyCount = Math.min(40, 20 + Math.floor(level / 10) * 5);
-        const fastEnemyCount = Math.min(10, Math.floor(level / 5));
-        const bossEnemyCount = Math.min(3, Math.floor(level / 20));
+        // Determine enemy distribution - make early levels easier
+        const basicEnemyCount = Math.min(20, 5 + Math.floor(level / 2) * 3);
+        const fastEnemyCount = Math.min(8, Math.max(0, Math.floor((level - 3) / 2)));
+        const bossEnemyCount = Math.min(3, Math.max(0, Math.floor((level - 5) / 5)));
+        
+        console.log(`Level ${level} - Enemies: basic=${basicEnemyCount}, fast=${fastEnemyCount}, boss=${bossEnemyCount}`);
         
         // Create enemy formation
         this.createFormation(basicEnemyCount, fastEnemyCount, bossEnemyCount);
@@ -67,9 +69,14 @@ class EnemyManager {
         const rows = Math.min(5, Math.ceil(totalEnemies / this.formationWidth));
         const cols = Math.min(this.formationWidth, totalEnemies);
         
-        // Calculate starting position
-        const startX = (gameWidth - (cols - 1) * this.formationSpacing.x) / 2;
+        // Calculate starting position - ensure it's not too close to edges
+        const startX = Math.max(50, (gameWidth - (cols - 1) * this.formationSpacing.x) / 2);
+        
+        // Ensure enemies start higher up on screen (further from player)
         const startY = this.formationOffsetY;
+        
+        console.log(`Creating enemy formation: ${rows} rows, ${cols} columns`);
+        console.log(`Total enemies: basic=${basicCount}, fast=${fastCount}, boss=${bossCount}`);
         
         // Place enemies in formation
         let placedCount = 0;
@@ -81,6 +88,7 @@ class EnemyManager {
                 const x = startX + col * this.formationSpacing.x;
                 const y = startY + row * this.formationSpacing.y;
                 
+                console.log(`Creating boss enemy at (${x}, ${y})`);
                 new Enemy(scene, x, y, 'enemy_boss', 'boss', this.getBossHealth());
                 bossCount--;
                 placedCount++;
@@ -97,6 +105,7 @@ class EnemyManager {
                 const x = startX + col * this.formationSpacing.x;
                 const y = startY + row * this.formationSpacing.y;
                 
+                console.log(`Creating fast enemy at (${x}, ${y})`);
                 new Enemy(scene, x, y, 'enemy_2', 'fast', this.getFastEnemyHealth());
                 fastCount--;
                 placedCount++;
@@ -113,6 +122,7 @@ class EnemyManager {
                 const x = startX + col * this.formationSpacing.x;
                 const y = startY + row * this.formationSpacing.y;
                 
+                console.log(`Creating basic enemy at (${x}, ${y})`);
                 new Enemy(scene, x, y, 'enemy_1', 'basic', this.getBasicEnemyHealth());
                 basicCount--;
                 placedCount++;
@@ -198,11 +208,16 @@ class EnemyManager {
     }
     
     adjustDifficulty(level) {
-        // Adjust movement speed based on level
-        this.moveDelay = Math.max(200, 1000 - (level * 10));
-        this.moveDistance = Math.min(25, 10 + Math.floor(level / 20) * 5);
+        // Cap difficulty increases for lower levels
+        const cappedLevel = Math.min(level, 10);
         
-        // Make enemies move down faster at higher levels
-        this.moveDownDistance = Math.min(40, 20 + Math.floor(level / 15) * 5);
+        // Make early levels more manageable
+        this.moveDelay = Math.max(400, 1000 - (cappedLevel * 30));
+        this.moveDistance = Math.min(15, 10 + Math.floor(cappedLevel / 5) * 2);
+        
+        // Make enemies move down more slowly at lower levels
+        this.moveDownDistance = Math.min(30, 15 + Math.floor(cappedLevel / 5) * 5);
+        
+        console.log(`Level ${level} - Difficulty: moveDelay=${this.moveDelay}, moveDistance=${this.moveDistance}, moveDownDistance=${this.moveDownDistance}`);
     }
 }

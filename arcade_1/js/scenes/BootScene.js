@@ -73,10 +73,10 @@ class BootScene extends Phaser.Scene {
         this.load.svg('dpad', 'assets/sprites/dpad.svg').on('loaderror', () => {
             console.warn("dpad.svg not found, using fallback");
         });
-        this.load.svg('fire_button', 'assets/sprites/fire_button.svg').on('loaderror', () => {
+        this.load.svg('fire_button', 'assets/sprites/fire-button.svg').on('loaderror', () => {
             console.warn("fire_button.svg not found, using fallback");
         });
-        this.load.svg('mute_button', 'assets/sprites/mute_button.svg').on('loaderror', () => {
+        this.load.svg('mute_button', 'assets/sprites/mute-button.svg').on('loaderror', () => {
             console.warn("mute_button.svg not found, using fallback");
         });
         
@@ -85,7 +85,7 @@ class BootScene extends Phaser.Scene {
         this.load.audio('player_shoot', 'assets/audio/player_shoot.mp3');
         this.load.audio('enemy_shoot', 'assets/audio/enemy_shoot.mp3');
         this.load.audio('explosion', 'assets/audio/explosion.mp3');
-        this.load.audio('powerup_pickup', 'assets/audio/powerup_pickup.mp3');
+        this.load.audio('powerup_pickup', 'assets/audio/powerup_pickup.wav');
         this.load.audio('enemy_spawn', 'assets/audio/enemy_spawn.mp3');
         this.load.audio('game_over', 'assets/audio/game_over.mp3');
         

@@ -25,6 +25,8 @@ class GameScene extends Phaser.Scene {
         // Bullet firing timers
         this.playerFireTimer = 0;
         this.playerFireDelay = 300; // Milliseconds between shots
+        
+        console.log("Starting game at level:", this.level, "GAME.level:", GAME.level);
     }
 
     create() {
@@ -92,6 +94,9 @@ class GameScene extends Phaser.Scene {
         
         // Set up resize handler
         this.scale.on('resize', this.resize, this);
+        
+        // Add debug support
+        this.addDebugInfo();
     }
 
     update(time, delta) {
@@ -125,6 +130,11 @@ class GameScene extends Phaser.Scene {
         // Check for pause key press
         if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
             this.togglePause();
+        }
+        
+        // Update debug info if enabled
+        if (this.debugMode && this.debugText) {
+            this.updateDebugInfo();
         }
     }
     
@@ -195,6 +205,8 @@ class GameScene extends Phaser.Scene {
             .on('pointerover', () => this.quitButton.setStyle({ fill: '#ff0' }))
             .on('pointerout', () => this.quitButton.setStyle({ fill: '#ffffff' }))
             .on('pointerdown', () => {
+                // Reset level before returning to menu
+                GAME.level = 1;
                 this.scene.start('MenuScene');
             });
         
@@ -336,15 +348,15 @@ class GameScene extends Phaser.Scene {
     
     handlePlayerInput(time, delta) {
         // Reset movement
-        this.player.setVelocity(0);
+        this.player.body.setVelocity(0);
         
         const moveSpeed = this.powerups.speed.active ? 300 : 200;
         
         // Handle keyboard input
         if (this.cursors.left.isDown || this.wasd.left.isDown || (GAME.isMobile && this.mobileControls.left)) {
-            this.player.setVelocityX(-moveSpeed);
+            this.player.body.setVelocityX(-moveSpeed);
         } else if (this.cursors.right.isDown || this.wasd.right.isDown || (GAME.isMobile && this.mobileControls.right)) {
-            this.player.setVelocityX(moveSpeed);
+            this.player.body.setVelocityX(moveSpeed);
         }
         
         // Handle shooting
@@ -408,7 +420,7 @@ class GameScene extends Phaser.Scene {
             
             // Create explosion animation at enemy position
             const explosion = this.add.sprite(enemy.x, enemy.y, 'explosion');
-            explosion.setScale(0.75); // Scale down slightly if needed
+            explosion.setScale(0.5); // Reduced scale for better proportions
             explosion.setOrigin(0.5, 0.5); // Center the explosion
             explosion.play('explode');
             explosion.once('animationcomplete', () => {
@@ -455,7 +467,7 @@ class GameScene extends Phaser.Scene {
         
         // Create explosion animation at player position
         const explosion = this.add.sprite(this.player.x, this.player.y, 'explosion');
-        explosion.setScale(1); // Larger explosion for player death
+        explosion.setScale(0.6); // Slightly larger for player but not too large
         explosion.setOrigin(0.5, 0.5); // Center the explosion
         explosion.play('explode');
         explosion.once('animationcomplete', () => {
@@ -631,6 +643,59 @@ class GameScene extends Phaser.Scene {
         });
     }
     
+    triggerKillScreen() {
+        this.isKillScreen = true;
+        
+        // Play glitch sound
+        this.playSound('game_over', 0.5);
+        
+        // Scramble the graphics
+        this.cameras.main.shake(2000, 0.01);
+        this.cameras.main.flash(100, 255, 255, 255, true);
+        
+        // Flicker the sprites
+        this.enemyManager.enemies.getChildren().forEach(enemy => {
+            this.tweens.add({
+                targets: enemy,
+                alpha: { from: 1, to: 0 },
+                duration: 100,
+                repeat: -1,
+                yoyo: true
+            });
+        });
+        
+        // Show kill screen text
+        const killScreenText = this.add.text(
+            this.cameras.main.width / 2,
+            this.cameras.main.height / 2 - 50,
+            'LEVEL 256 - KILL SCREEN',
+            {
+                font: '40px Arial',
+                fill: '#ff0000',
+                stroke: '#ffffff',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5);
+        
+        const hintText = this.add.text(
+            this.cameras.main.width / 2,
+            this.cameras.main.height / 2 + 20,
+            'SECRET CODE TO CONTINUE...',
+            {
+                font: '24px Arial',
+                fill: '#ffffff'
+            }
+        ).setOrigin(0.5);
+        
+        // Create a timer for the kill screen bypass
+        this.killScreenTimer = this.time.delayedCall(10000, () => {
+            // If the player hasn't entered the code, game over
+            if (this.isKillScreen) {
+                this.gameOver();
+            }
+        }, [], this);
+    }
+    
     checkKillScreenCode(event) {
         if (!this.isKillScreen) return;
         
@@ -722,162 +787,231 @@ class GameScene extends Phaser.Scene {
             // Reset to level 1 with increased difficulty
             GAME.level = 1;
             
-            // Restart the game scene
-            this.scene.restart();
-        }, [], this);
-    }
-    
-    gameOver() {
-        this.isGameOver = true;
-        
-        // Play game over sound
-        this.playSound('game_over', 0.7);
-        
-        // Store final score
-        GAME.score = this.score;
-        
-        // Transition to game over scene after a delay
-        this.time.delayedCall(2000, () => {
-            // Stop music
-            if (this.bgMusic) {
-                try {
-                    this.bgMusic.stop();
-                } catch (err) {
-                    console.warn("Error stopping music:", err);
-                }
-            }
-            
-            this.scene.start('GameOverScene');
-        }, [], this);
-    }
-    
-    // Utility method to safely play sounds
-    playSound(key, volume = 0.5) {
+// Restart the game scene
+this.scene.restart();
+}, [], this);
+}
+
+gameOver() {
+this.isGameOver = true;
+
+// Play game over sound
+this.playSound('game_over', 0.7);
+
+// Store final score
+GAME.score = this.score;
+
+// Transition to game over scene after a delay
+this.time.delayedCall(2000, () => {
+    // Stop music
+    if (this.bgMusic) {
         try {
-            if (!GAME.isMuted && this.cache.audio.exists(key)) {
-                this.sound.play(key, { volume: volume });
-            }
+            this.bgMusic.stop();
         } catch (err) {
-            console.warn(`Could not play ${key} sound:`, err);
+            console.warn("Error stopping music:", err);
         }
     }
     
-    // Method to safely initialize background music
-    safelyInitBackgroundMusic() {
-        try {
-            if (this.cache.audio.exists('bg_music')) {
-                this.bgMusic = this.sound.add('bg_music', {
-                    volume: 0.4,
-                    loop: true
-                });
-                
-                if (!GAME.isMuted) {
-                    // Use promise handling to catch errors
-                    this.bgMusic.play().catch(err => {
-                        console.warn("Error playing background music:", err);
-                    });
-                }
-            } else {
-                console.warn("Background music not found in cache");
-            }
-        } catch (err) {
-            console.error("Error initializing background music:", err);
+    // Reset level before going to game over screen
+    GAME.level = 1;
+    this.scene.start('GameOverScene');
+}, [], this);
+}
+
+togglePause() {
+this.isPaused = !this.isPaused;
+
+if (this.isPaused) {
+    // Pause the physics
+    this.physics.pause();
+    
+    // Show pause menu
+    this.pauseBackground.setVisible(true);
+    this.pauseText.setVisible(true);
+    this.resumeButton.setVisible(true);
+    this.quitButton.setVisible(true);
+} else {
+    // Resume the physics
+    this.physics.resume();
+    
+    // Hide pause menu
+    this.pauseBackground.setVisible(false);
+    this.pauseText.setVisible(false);
+    this.resumeButton.setVisible(false);
+    this.quitButton.setVisible(false);
+}
+}
+
+// Utility method to safely play sounds
+playSound(key, volume = 0.5) {
+try {
+    if (!GAME.isMuted && this.cache.audio.exists(key)) {
+        this.sound.play(key, { volume: volume });
+    }
+} catch (err) {
+    console.warn(`Could not play ${key} sound:`, err);
+}
+}
+
+// Method to safely initialize background music
+safelyInitBackgroundMusic() {
+try {
+    if (this.cache.audio.exists('bg_music')) {
+        this.bgMusic = this.sound.add('bg_music', {
+            volume: 0.4,
+            loop: true
+        });
+        
+        if (!GAME.isMuted) {
+            // Don't use promise/catch as Phaser's sound.play() doesn't return a promise
+            this.bgMusic.play();
         }
+    } else {
+        console.warn("Background music not found in cache");
+    }
+} catch (err) {
+    console.error("Error initializing background music:", err);
+}
+}
+
+// Add debug support
+addDebugInfo() {
+// Create debug text
+this.debugText = this.add.text(
+    10, 
+    this.cameras.main.height - 60, 
+    'Debug: Press D to toggle', 
+    {
+        font: '14px Arial',
+        fill: '#ffff00'
+    }
+).setScrollFactor(0).setDepth(1000);
+
+this.debugMode = false;
+this.debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+
+this.input.keyboard.on('keydown-D', () => {
+    this.debugMode = !this.debugMode;
+    this.debugText.setText(`Debug: ${this.debugMode ? 'ON' : 'OFF'}`);
+    
+    // Toggle debug visualization for collision areas
+    if (this.physics.world.debugGraphic) {
+        this.physics.world.debugGraphic.setVisible(this.debugMode);
+    } else if (this.debugMode) {
+        this.physics.world.createDebugGraphic();
+    }
+});
+}
+
+// Update debug information
+updateDebugInfo() {
+let debugInfo = `Debug: ON\n`;
+debugInfo += `FPS: ${Math.round(this.game.loop.actualFps)}\n`;
+debugInfo += `Level: ${this.level}\n`;
+debugInfo += `Player Health: ${this.playerHealth}\n`;
+debugInfo += `Lives: ${this.playerLives}\n`;
+debugInfo += `Enemies: ${this.enemyManager.enemies.countActive()}\n`;
+debugInfo += `Player Bullets: ${this.playerBullets.countActive()}\n`;
+debugInfo += `Enemy Bullets: ${this.enemyBullets.countActive()}\n`;
+
+this.debugText.setText(debugInfo);
+}
+
+// Resize method to handle different screen resolutions
+resize(gameSize) {
+// Update the UI manager
+if (this.uiManager) {
+    this.uiManager.resize(gameSize.width, gameSize.height);
+}
+
+// Update level text position
+if (this.levelText) {
+    this.levelText.setPosition(gameSize.width - 20, 60);
+}
+
+// Update pause menu
+if (this.pauseBackground) {
+    this.pauseBackground.setPosition(gameSize.width / 2, gameSize.height / 2);
+    this.pauseBackground.setSize(gameSize.width, gameSize.height);
+}
+
+if (this.pauseText) {
+    this.pauseText.setPosition(gameSize.width / 2, gameSize.height / 2 - 50);
+}
+
+if (this.resumeButton) {
+    this.resumeButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 20);
+}
+
+if (this.quitButton) {
+    this.quitButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 70);
+}
+
+// Update debug text position
+if (this.debugText) {
+    this.debugText.setPosition(10, gameSize.height - 60);
+}
+
+// Update mobile controls if present
+if (GAME.isMobile) {
+    // Update D-pad position
+    if (this.dpad) {
+        this.dpad.setPosition(100, gameSize.height - 100);
+        
+        // Update hit zones
+        const dpadRadius = 50;
+        const dpadCenterX = 100;
+        const dpadCenterY = gameSize.height - 100;
+        
+        // We need to recreate the zones since they don't have a setPosition method
+        if (this.leftZone) this.leftZone.destroy();
+        if (this.rightZone) this.rightZone.destroy();
+        if (this.upZone) this.upZone.destroy();
+        if (this.downZone) this.downZone.destroy();
+        
+        this.leftZone = this.add.zone(dpadCenterX - dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerdown', () => { this.mobileControls.left = true; })
+            .on('pointerup', () => { this.mobileControls.left = false; })
+            .on('pointerout', () => { this.mobileControls.left = false; });
+        
+        this.rightZone = this.add.zone(dpadCenterX + dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerdown', () => { this.mobileControls.right = true; })
+            .on('pointerup', () => { this.mobileControls.right = false; })
+            .on('pointerout', () => { this.mobileControls.right = false; });
+        
+        this.upZone = this.add.zone(dpadCenterX, dpadCenterY - dpadRadius/2, dpadRadius, dpadRadius)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerdown', () => { this.mobileControls.up = true; })
+            .on('pointerup', () => { this.mobileControls.up = false; })
+            .on('pointerout', () => { this.mobileControls.up = false; });
+        
+        this.downZone = this.add.zone(dpadCenterX, dpadCenterY + dpadRadius/2, dpadRadius, dpadRadius)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerdown', () => { this.mobileControls.down = true; })
+            .on('pointerup', () => { this.mobileControls.down = false; })
+            .on('pointerout', () => { this.mobileControls.down = false; });
     }
     
-    // Resize method to handle different screen resolutions
-    resize(gameSize) {
-        // Update the UI manager
-        if (this.uiManager) {
-            this.uiManager.resize(gameSize.width, gameSize.height);
-        }
+    // Update fire button position
+    if (this.fireButton) {
+        this.fireButton.setPosition(gameSize.width - 80, gameSize.height - 100);
+    }
+    
+    // Update mute button position
+    if (this.muteButton) {
+        this.muteButton.setPosition(gameSize.width - 40, 40);
         
-        // Update level text position
-        if (this.levelText) {
-            this.levelText.setPosition(gameSize.width - 20, 60);
-        }
-        
-        // Update pause menu
-        if (this.pauseBackground) {
-            this.pauseBackground.setPosition(gameSize.width / 2, gameSize.height / 2);
-            this.pauseBackground.setSize(gameSize.width, gameSize.height);
-        }
-        
-        if (this.pauseText) {
-            this.pauseText.setPosition(gameSize.width / 2, gameSize.height / 2 - 50);
-        }
-        
-        if (this.resumeButton) {
-            this.resumeButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 20);
-        }
-        
-        if (this.quitButton) {
-            this.quitButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 70);
-        }
-        
-        // Update mobile controls if present
-        if (GAME.isMobile) {
-            // Update D-pad position
-            if (this.dpad) {
-                this.dpad.setPosition(100, gameSize.height - 100);
-                
-                // Update hit zones
-                const dpadRadius = 50;
-                const dpadCenterX = 100;
-                const dpadCenterY = gameSize.height - 100;
-                
-                // We need to recreate the zones since they don't have a setPosition method
-                if (this.leftZone) this.leftZone.destroy();
-                if (this.rightZone) this.rightZone.destroy();
-                if (this.upZone) this.upZone.destroy();
-                if (this.downZone) this.downZone.destroy();
-                
-                this.leftZone = this.add.zone(dpadCenterX - dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.left = true; })
-                    .on('pointerup', () => { this.mobileControls.left = false; })
-                    .on('pointerout', () => { this.mobileControls.left = false; });
-                
-                this.rightZone = this.add.zone(dpadCenterX + dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.right = true; })
-                    .on('pointerup', () => { this.mobileControls.right = false; })
-                    .on('pointerout', () => { this.mobileControls.right = false; });
-                
-                this.upZone = this.add.zone(dpadCenterX, dpadCenterY - dpadRadius/2, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.up = true; })
-                    .on('pointerup', () => { this.mobileControls.up = false; })
-                    .on('pointerout', () => { this.mobileControls.up = false; });
-                
-                this.downZone = this.add.zone(dpadCenterX, dpadCenterY + dpadRadius/2, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.down = true; })
-                    .on('pointerup', () => { this.mobileControls.down = false; })
-                    .on('pointerout', () => { this.mobileControls.down = false; });
-            }
-            
-            // Update fire button position
-            if (this.fireButton) {
-                this.fireButton.setPosition(gameSize.width - 80, gameSize.height - 100);
-            }
-            
-            // Update mute button position
-            if (this.muteButton) {
-                this.muteButton.setPosition(gameSize.width - 40, 40);
-                
-                // Update mute text if using fallback
-                if (this.muteText) {
-                    this.muteText.setPosition(gameSize.width - 40, 40);
-                }
-            }
+        // Update mute text if using fallback
+        if (this.muteText) {
+            this.muteText.setPosition(gameSize.width - 40, 40);
         }
     }
 }
-    
-    
-    
+}
+}
