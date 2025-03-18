@@ -1,6 +1,6 @@
-# Galaga Clone
+# Neogalaxia
 
-A web-based clone of the classic arcade game Galaga, developed using Phaser.js.
+A web-based space shooter game inspired by classic arcade games, developed using Phaser.js.
 
 ## Features
 
@@ -35,7 +35,7 @@ A web-based clone of the classic arcade game Galaga, developed using Phaser.js.
 ## Project Structure
 
 ```
-galaga-clone/
+neogalaxia/
 ├── assets/
 │   ├── sprites/
 │   │   ├── player_ship.png
@@ -86,7 +86,7 @@ galaga-clone/
 1. **Create an S3 Bucket**:
    - Log in to your AWS Management Console
    - Navigate to S3 and create a new bucket
-   - Give it a unique name (e.g., `my-galaga-clone`)
+   - Give it a unique name (e.g., `my-neogalaxia`)
    - Choose a region close to your target audience
    - Leave all settings at their defaults and create the bucket
 

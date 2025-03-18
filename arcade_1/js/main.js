@@ -63,17 +63,23 @@ const game = new Phaser.Game(config);
 
 // Load high score from local storage if available
 window.addEventListener('load', function() {
-    const savedHighScore = localStorage.getItem('galagaHighScore');
+    const savedHighScore = localStorage.getItem('neogalaxiaHighScore');
     if (savedHighScore) {
         GAME.highScore = parseInt(savedHighScore);
     }
+    
     // Make sure level is reset when loading the page
     GAME.level = 1;
+    console.log("Window loaded: GAME.level reset to", GAME.level);
+    
+    // Clear any stored level in localStorage
+    localStorage.removeItem('neogalaxiaLevel');
 });
 
 // Save high score when window is closed
 window.addEventListener('beforeunload', function() {
-    localStorage.setItem('galagaHighScore', GAME.highScore.toString());
+    localStorage.setItem('neogalaxiaHighScore', GAME.highScore.toString());
+    // Do not save the level to localStorage
 });
 
 // Handle fullscreen toggle on mobile

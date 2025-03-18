@@ -23,22 +23,77 @@ class EnemyManager {
         
         // Current level
         this.currentLevel = 1;
+        
+        // Flag to track if wave creation is complete
+        this.waveCreationComplete = true;
     }
     
     createWave(level) {
         // Clear any existing enemies
         this.enemies.clear(true, true);
         
-        // Store current level
+        // Set wave creation flag to false - wave is being created
+        this.waveCreationComplete = false;
+        
+        // Store current level and add debugging
         this.currentLevel = level;
+        console.log(`EnemyManager.createWave: Creating wave for level ${level}, this.currentLevel set to ${this.currentLevel}`);
         
         // Adjust difficulty based on level
         this.adjustDifficulty(level);
         
-        // Determine enemy distribution - make early levels easier
-        const basicEnemyCount = Math.min(20, 5 + Math.floor(level / 2) * 3);
-        const fastEnemyCount = Math.min(8, Math.max(0, Math.floor((level - 3) / 2)));
-        const bossEnemyCount = Math.min(3, Math.max(0, Math.floor((level - 5) / 5)));
+        // Determine enemy distribution - make early levels MUCH easier
+        // Significantly reduced enemy counts for early levels
+        let basicEnemyCount, fastEnemyCount, bossEnemyCount;
+        
+        // Calculate enemy counts based on level with a much more gradual progression
+        // Spread difficulty across all 255 levels
+        if (level === 1) {
+            // Level 1: Very few basic enemies, no fast or boss enemies
+            basicEnemyCount = 2;
+            fastEnemyCount = 0;
+            bossEnemyCount = 0;
+        } else if (level <= 5) {
+            // Levels 2-5: Slowly introduce more basic enemies
+            basicEnemyCount = 2 + Math.floor(level / 2);
+            fastEnemyCount = 0;
+            bossEnemyCount = 0;
+        } else if (level <= 10) {
+            // Levels 6-10: Introduce first fast enemy
+            basicEnemyCount = 4 + Math.floor((level - 5) / 2);
+            fastEnemyCount = 1;
+            bossEnemyCount = 0;
+        } else if (level <= 20) {
+            // Levels 11-20: Slowly increase basic and fast enemies
+            basicEnemyCount = 6 + Math.floor((level - 10) / 5);
+            fastEnemyCount = 1 + Math.floor((level - 10) / 5);
+            bossEnemyCount = 0;
+        } else if (level <= 30) {
+            // Levels 21-30: Introduce first boss
+            basicEnemyCount = 8 + Math.floor((level - 20) / 5);
+            fastEnemyCount = 3 + Math.floor((level - 20) / 10);
+            bossEnemyCount = 1;
+        } else if (level <= 50) {
+            // Levels 31-50: Gradual increase
+            basicEnemyCount = 10 + Math.floor((level - 30) / 10);
+            fastEnemyCount = 4 + Math.floor((level - 30) / 10);
+            bossEnemyCount = 1;
+        } else if (level <= 100) {
+            // Levels 51-100: Medium difficulty
+            basicEnemyCount = 12 + Math.floor((level - 50) / 25);
+            fastEnemyCount = 5 + Math.floor((level - 50) / 25);
+            bossEnemyCount = 1 + Math.floor((level - 50) / 50);
+        } else if (level <= 200) {
+            // Levels 101-200: Higher difficulty
+            basicEnemyCount = 14 + Math.floor((level - 100) / 50);
+            fastEnemyCount = 6 + Math.floor((level - 100) / 50);
+            bossEnemyCount = 2 + Math.floor((level - 100) / 100);
+        } else {
+            // Levels 201-255: Maximum difficulty
+            basicEnemyCount = Math.min(20, 16 + Math.floor((level - 200) / 50));
+            fastEnemyCount = Math.min(8, 7 + Math.floor((level - 200) / 100));
+            bossEnemyCount = Math.min(3, 2 + Math.floor((level - 200) / 100));
+        }
         
         console.log(`Level ${level} - Enemies: basic=${basicEnemyCount}, fast=${fastEnemyCount}, boss=${bossEnemyCount}`);
         
@@ -82,14 +137,24 @@ class EnemyManager {
         let placedCount = 0;
         let enemiesLeft = totalEnemies;
         
+        // Stagger enemy spawning with delays
+        const spawnDelay = 300; // milliseconds between each enemy spawn
+        
         // Place bosses first (at the top)
         for (let row = 0; row < rows && bossCount > 0; row++) {
             for (let col = 0; col < cols && bossCount > 0; col++) {
                 const x = startX + col * this.formationSpacing.x;
                 const y = startY + row * this.formationSpacing.y;
+                const enemyIndex = placedCount;
                 
-                console.log(`Creating boss enemy at (${x}, ${y})`);
-                new Enemy(scene, x, y, 'enemy_boss', 'boss', this.getBossHealth());
+                // Stagger enemy spawning with a delay
+                scene.time.delayedCall(enemyIndex * spawnDelay, () => {
+                    console.log(`Creating boss enemy at (${x}, ${y})`);
+                    new Enemy(scene, x, y, 'enemy_boss', 'boss', this.getBossHealth());
+                    // Play spawn sound for first enemy only to avoid sound spam
+                    if (enemyIndex === 0) this.playSpawnSound();
+                });
+                
                 bossCount--;
                 placedCount++;
                 enemiesLeft--;
@@ -100,13 +165,20 @@ class EnemyManager {
         for (let row = 0; row < rows && fastCount > 0; row++) {
             for (let col = 0; col < cols && fastCount > 0; col++) {
                 // Skip positions that already have bosses
-                if (row * cols + col < placedCount) continue;
+                if (row * cols + col < placedCount - fastCount - bossCount) continue;
                 
                 const x = startX + col * this.formationSpacing.x;
                 const y = startY + row * this.formationSpacing.y;
+                const enemyIndex = placedCount;
                 
-                console.log(`Creating fast enemy at (${x}, ${y})`);
-                new Enemy(scene, x, y, 'enemy_2', 'fast', this.getFastEnemyHealth());
+                // Stagger enemy spawning with a delay
+                scene.time.delayedCall(enemyIndex * spawnDelay, () => {
+                    console.log(`Creating fast enemy at (${x}, ${y})`);
+                    new Enemy(scene, x, y, 'enemy_2', 'fast', this.getFastEnemyHealth());
+                    // Play spawn sound for first enemy only if no bosses
+                    if (enemyIndex === 0 && bossCount === 0) this.playSpawnSound();
+                });
+                
                 fastCount--;
                 placedCount++;
                 enemiesLeft--;
@@ -117,17 +189,36 @@ class EnemyManager {
         for (let row = 0; row < rows && basicCount > 0; row++) {
             for (let col = 0; col < cols && basicCount > 0; col++) {
                 // Skip positions that already have enemies
-                if (row * cols + col < placedCount) continue;
+                if (row * cols + col < placedCount - basicCount) continue;
                 
                 const x = startX + col * this.formationSpacing.x;
                 const y = startY + row * this.formationSpacing.y;
+                const enemyIndex = placedCount;
                 
-                console.log(`Creating basic enemy at (${x}, ${y})`);
-                new Enemy(scene, x, y, 'enemy_1', 'basic', this.getBasicEnemyHealth());
+                // Stagger enemy spawning with a delay
+                scene.time.delayedCall(enemyIndex * spawnDelay, () => {
+                    console.log(`Creating basic enemy at (${x}, ${y})`);
+                    new Enemy(scene, x, y, 'enemy_1', 'basic', this.getBasicEnemyHealth());
+                    // Play spawn sound for first enemy only if no bosses or fast enemies
+                    if (enemyIndex === 0 && bossCount === 0 && fastCount === 0) this.playSpawnSound();
+                    
+                    // If this is the last enemy to be created, mark wave creation as complete
+                    if (enemyIndex === totalEnemies - 1) {
+                        this.waveCreationComplete = true;
+                        console.log("Wave creation complete - all enemies spawned");
+                    }
+                });
+                
                 basicCount--;
                 placedCount++;
                 enemiesLeft--;
             }
+        }
+        
+        // If no enemies were created at all, mark wave as complete immediately
+        if (totalEnemies === 0) {
+            this.waveCreationComplete = true;
+            console.log("Wave creation complete - no enemies to spawn");
         }
     }
     
@@ -208,15 +299,53 @@ class EnemyManager {
     }
     
     adjustDifficulty(level) {
-        // Cap difficulty increases for lower levels
-        const cappedLevel = Math.min(level, 10);
+        // Calculate difficulty parameters based on level with a much more gradual progression
+        // Spread difficulty across all 255 levels
         
-        // Make early levels more manageable
-        this.moveDelay = Math.max(400, 1000 - (cappedLevel * 30));
-        this.moveDistance = Math.min(15, 10 + Math.floor(cappedLevel / 5) * 2);
+        // For movement delay (higher = slower)
+        if (level <= 10) {
+            // Very slow movement in first 10 levels
+            this.moveDelay = 1800 - (level * 30); // 1800ms -> 1500ms
+        } else if (level <= 50) {
+            // Gradually decrease delay from levels 11-50
+            this.moveDelay = 1500 - ((level - 10) * 10); // 1500ms -> 1100ms
+        } else if (level <= 100) {
+            // Continue decreasing from levels 51-100
+            this.moveDelay = 1100 - ((level - 50) * 5); // 1100ms -> 850ms
+        } else if (level <= 200) {
+            // Slower decrease from levels 101-200
+            this.moveDelay = 850 - ((level - 100) * 2); // 850ms -> 650ms
+        } else {
+            // Final decrease from levels 201-255
+            this.moveDelay = Math.max(400, 650 - ((level - 200) * 4)); // 650ms -> 400ms minimum
+        }
         
-        // Make enemies move down more slowly at lower levels
-        this.moveDownDistance = Math.min(30, 15 + Math.floor(cappedLevel / 5) * 5);
+        // For horizontal movement distance
+        if (level <= 20) {
+            // Small movements in early levels
+            this.moveDistance = 5 + Math.floor(level / 10); // 5-7 pixels
+        } else if (level <= 100) {
+            // Gradually increase from levels 21-100
+            this.moveDistance = 7 + Math.floor((level - 20) / 20); // 7-11 pixels
+        } else {
+            // Maximum movement for higher levels
+            this.moveDistance = Math.min(15, 11 + Math.floor((level - 100) / 50)); // 11-15 pixels max
+        }
+        
+        // For downward movement distance
+        if (level <= 30) {
+            // Minimal downward movement in early levels
+            this.moveDownDistance = 10; // Fixed small downward movement
+        } else if (level <= 100) {
+            // Gradually increase from levels 31-100
+            this.moveDownDistance = 10 + Math.floor((level - 30) / 14); // 10-15 pixels
+        } else if (level <= 200) {
+            // Continue increasing from levels 101-200
+            this.moveDownDistance = 15 + Math.floor((level - 100) / 20); // 15-20 pixels
+        } else {
+            // Maximum downward movement for highest levels
+            this.moveDownDistance = Math.min(30, 20 + Math.floor((level - 200) / 20)); // 20-30 pixels max
+        }
         
         console.log(`Level ${level} - Difficulty: moveDelay=${this.moveDelay}, moveDistance=${this.moveDistance}, moveDownDistance=${this.moveDownDistance}`);
     }

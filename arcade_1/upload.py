@@ -41,7 +41,7 @@ def invalidate_cloudfront(distribution_id: str):
 
 if __name__ == "__main__":
     # Set AWS environment variables
-    os.environ["AWS_ACCESS_KEY_ID"] = "your-access-key"
+    os.environ["AWS_ACCESS_KEY_ID"] = "your-secret-id"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "your-secret-key"
     os.environ["AWS_DEFAULT_REGION"] = "us-west-2"
     

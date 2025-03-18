@@ -8,7 +8,11 @@ class GameScene extends Phaser.Scene {
         this.playerHealth = 100;
         this.playerLives = GAME.lives;
         this.score = 0;
+        
+        // Ensure level synchronization
         this.level = GAME.level;
+        console.log("GameScene.init: Setting this.level to GAME.level:", this.level);
+        
         this.isPaused = false;
         this.isGameOver = false;
         this.isKillScreen = false;
@@ -54,10 +58,26 @@ class GameScene extends Phaser.Scene {
         
         this.powerupItems = this.physics.add.group();
         
-        // Set up collision detection
-        this.physics.add.overlap(this.playerBullets, this.enemyManager.enemies, this.bulletHitEnemy, null, this);
-        this.physics.add.overlap(this.enemyBullets, this.player, this.bulletHitPlayer, null, this);
-        this.physics.add.overlap(this.player, this.enemyManager.enemies, this.playerHitEnemy, null, this);
+        // Set up collision detection with direct collision processing
+        // Player bullets hitting enemies
+        this.physics.add.collider(this.playerBullets, this.enemyManager.enemies, (bullet, enemy) => {
+            console.log("COLLISION: Player bullet hit enemy!");
+            this.bulletHitEnemy(bullet, enemy);
+        }, null, this);
+        
+        // Enemy bullets hitting player
+        this.physics.add.collider(this.enemyBullets, this.player, (bullet, player) => {
+            console.log("COLLISION: Enemy bullet hit player!");
+            this.bulletHitPlayer(bullet, player);
+        }, null, this);
+        
+        // Player hitting enemies
+        this.physics.add.collider(this.player, this.enemyManager.enemies, (player, enemy) => {
+            console.log("COLLISION: Player hit enemy!");
+            this.playerHitEnemy(player, enemy);
+        }, null, this);
+        
+        // Player collecting powerups
         this.physics.add.overlap(this.player, this.powerupItems, this.collectPowerup, null, this);
         
         // Create UI elements
@@ -106,25 +126,42 @@ class GameScene extends Phaser.Scene {
         this.background.tilePositionY -= 0.5;
         
         // Handle player input if player is alive
-        if (this.player.active) {
+        if (this.player && this.player.active) {
             this.handlePlayerInput(time, delta);
         }
         
         // Update enemy manager
         this.enemyManager.update(time, delta);
         
-        // Check if all enemies are destroyed
-        if (this.enemyManager.enemies.countActive() === 0 && !this.isKillScreen) {
-            this.time.delayedCall(2000, () => {
-                this.level++;
-                GAME.level = this.level;
+        // Check if all enemies are destroyed and wave creation is complete
+        if (this.enemyManager.enemies.countActive() === 0 && !this.isKillScreen && this.enemyManager.waveCreationComplete) {
+            // Add a flag to prevent multiple level-up calls
+            if (!this.isLevelingUp) {
+                this.isLevelingUp = true;
+                console.log("All enemies destroyed, wave creation complete. Advancing to next level.");
                 
-                if (this.level === 256) {
-                    this.triggerKillScreen();
-                } else {
-                    this.startLevel(this.level);
-                }
-            });
+                console.log(`Level ${this.level} completed. Advancing to level ${this.level + 1}`);
+                
+                this.time.delayedCall(2000, () => {
+                    // Increment level by exactly 1
+                    this.level += 1;
+                    // Update global level to match local level
+                    GAME.level = this.level;
+                    
+                    console.log(`Level incremented to ${this.level}, GAME.level = ${GAME.level}`);
+                    console.log(`Starting level ${this.level}`);
+                    
+                    if (this.level === 256) {
+                        this.triggerKillScreen();
+                    } else {
+                        // Explicitly pass the current level to startLevel
+                        this.startLevel(this.level);
+                    }
+                    
+                    // Reset the flag after level has started
+                    this.isLevelingUp = false;
+                });
+            }
         }
         
         // Check for pause key press
@@ -135,6 +172,33 @@ class GameScene extends Phaser.Scene {
         // Update debug info if enabled
         if (this.debugMode && this.debugText) {
             this.updateDebugInfo();
+        }
+    }
+    
+    handlePlayerInput(time, delta) {
+        // Make sure player and physics body exist
+        if (!this.player || !this.player.body) {
+            console.error("Player or player physics body is undefined");
+            return;
+        }
+        
+        // Reset movement
+        this.player.body.setVelocity(0);
+        
+        const moveSpeed = this.powerups.speed.active ? 300 : 200;
+        
+        // Handle keyboard input
+        if (this.cursors.left.isDown || this.wasd.left.isDown || (GAME.isMobile && this.mobileControls?.left)) {
+            this.player.body.setVelocityX(-moveSpeed);
+        } else if (this.cursors.right.isDown || this.wasd.right.isDown || (GAME.isMobile && this.mobileControls?.right)) {
+            this.player.body.setVelocityX(moveSpeed);
+        }
+        
+        // Handle shooting
+        if ((this.spaceKey.isDown || (GAME.isMobile && this.mobileControls?.fire)) && 
+            time > this.playerFireTimer) {
+            this.playerFire();
+            this.playerFireTimer = time + this.playerFireDelay;
         }
     }
     
@@ -346,38 +410,71 @@ class GameScene extends Phaser.Scene {
         }
     }
     
-    handlePlayerInput(time, delta) {
-        // Reset movement
-        this.player.body.setVelocity(0);
-        
-        const moveSpeed = this.powerups.speed.active ? 300 : 200;
-        
-        // Handle keyboard input
-        if (this.cursors.left.isDown || this.wasd.left.isDown || (GAME.isMobile && this.mobileControls.left)) {
-            this.player.body.setVelocityX(-moveSpeed);
-        } else if (this.cursors.right.isDown || this.wasd.right.isDown || (GAME.isMobile && this.mobileControls.right)) {
-            this.player.body.setVelocityX(moveSpeed);
-        }
-        
-        // Handle shooting
-        if ((this.spaceKey.isDown || (GAME.isMobile && this.mobileControls.fire)) && 
-            time > this.playerFireTimer) {
-            this.playerFire();
-            this.playerFireTimer = time + this.playerFireDelay;
-        }
-    }
-    
     playerFire() {
+        // Find the closest enemy to target
+        let closestEnemy = this.findClosestEnemy();
+        
+        // Calculate bullet spawn position - ensure it's well outside the player's bounding box
+        const playerHeight = this.player.displayHeight;
+        const bulletOffsetY = playerHeight * 2; // Spawn bullets at 2x the player's height away
+        
         // Create bullet(s) based on power-up status
         if (this.powerups.doubleShot.active) {
-            new Bullet(this, this.player.x - 10, this.player.y - 20, 'player_bullet', 'up', 300);
-            new Bullet(this, this.player.x + 10, this.player.y - 20, 'player_bullet', 'up', 300);
+            if (closestEnemy) {
+                // Target-based bullets
+                new Bullet(this, this.player.x - 10, this.player.y - bulletOffsetY, 'player_bullet', 'up', 300, 0, closestEnemy.x, closestEnemy.y);
+                new Bullet(this, this.player.x + 10, this.player.y - bulletOffsetY, 'player_bullet', 'up', 300, 0, closestEnemy.x, closestEnemy.y);
+            } else {
+                // No enemy to target, shoot straight up
+                new Bullet(this, this.player.x - 10, this.player.y - bulletOffsetY, 'player_bullet', 'up', 300);
+                new Bullet(this, this.player.x + 10, this.player.y - bulletOffsetY, 'player_bullet', 'up', 300);
+            }
         } else {
-            new Bullet(this, this.player.x, this.player.y - 20, 'player_bullet', 'up', 300);
+            if (closestEnemy) {
+                // Target-based bullet
+                new Bullet(this, this.player.x, this.player.y - bulletOffsetY, 'player_bullet', 'up', 300, 0, closestEnemy.x, closestEnemy.y);
+            } else {
+                // No enemy to target, shoot straight up
+                new Bullet(this, this.player.x, this.player.y - bulletOffsetY, 'player_bullet', 'up', 300);
+            }
         }
         
         // Play shooting sound - safely
         this.playSound('player_shoot', 0.5);
+    }
+    
+    /**
+     * Find the closest active enemy to the player
+     * @returns {Phaser.GameObjects.GameObject|null} The closest enemy or null if none found
+     */
+    findClosestEnemy() {
+        if (!this.enemyManager || !this.enemyManager.enemies) {
+            return null;
+        }
+        
+        const activeEnemies = this.enemyManager.enemies.getChildren().filter(enemy => enemy.active);
+        
+        if (activeEnemies.length === 0) {
+            return null;
+        }
+        
+        // Find the closest enemy
+        let closestEnemy = null;
+        let closestDistance = Infinity;
+        
+        activeEnemies.forEach(enemy => {
+            const distance = Phaser.Math.Distance.Between(
+                this.player.x, this.player.y,
+                enemy.x, enemy.y
+            );
+            
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestEnemy = enemy;
+            }
+        });
+        
+        return closestEnemy;
     }
     
     bulletHitEnemy(bullet, enemy) {
@@ -433,20 +530,38 @@ class GameScene extends Phaser.Scene {
     }
     
     bulletHitPlayer(bullet, player) {
+        console.log("bulletHitPlayer called - bullet:", bullet, "player:", player);
+        
+        // Ensure correct parameter order - bullet should be a Bullet and player should be the Player
+        let actualBullet, actualPlayer;
+        
+        if (bullet.constructor.name === 'Player') {
+            // Parameters are swapped
+            actualBullet = player;
+            actualPlayer = bullet;
+        } else {
+            // Parameters are in correct order
+            actualBullet = bullet;
+            actualPlayer = player;
+        }
+        
         // Destroy the bullet
-        bullet.destroy();
+        actualBullet.destroy();
         
         // If player has shield, ignore damage
         if (this.powerups.shield.active) {
+            console.log("Player has shield - ignoring damage");
             return;
         }
         
         // Decrease player health
         this.playerHealth -= 20;
+        console.log(`Player health decreased to ${this.playerHealth}`);
         this.updateHealthBar();
         
         // Check if player is dead
         if (this.playerHealth <= 0) {
+            console.log("Player health <= 0, calling playerDie()");
             this.playerDie();
         }
     }
@@ -462,6 +577,8 @@ class GameScene extends Phaser.Scene {
     }
     
     playerDie() {
+        console.log("playerDie() called");
+        
         // Play explosion sound
         this.playSound('explosion', 0.7);
         
@@ -479,13 +596,16 @@ class GameScene extends Phaser.Scene {
         
         // Decrease lives
         this.playerLives--;
+        console.log(`Player lives decreased to ${this.playerLives}`);
         this.updateLivesDisplay();
         
         // Check if game over
         if (this.playerLives <= 0) {
+            console.log("Player lives <= 0, calling gameOver()");
             this.gameOver();
         } else {
             // Respawn player after a delay
+            console.log("Scheduling player respawn");
             this.time.delayedCall(1500, this.respawnPlayer, [], this);
         }
     }
@@ -787,231 +907,246 @@ class GameScene extends Phaser.Scene {
             // Reset to level 1 with increased difficulty
             GAME.level = 1;
             
-// Restart the game scene
-this.scene.restart();
-}, [], this);
-}
-
-gameOver() {
-this.isGameOver = true;
-
-// Play game over sound
-this.playSound('game_over', 0.7);
-
-// Store final score
-GAME.score = this.score;
-
-// Transition to game over scene after a delay
-this.time.delayedCall(2000, () => {
-    // Stop music
-    if (this.bgMusic) {
+            // Restart the game scene
+            this.scene.restart();
+        }, [], this);
+    }
+    
+    gameOver() {
+        console.log("gameOver() called");
+        this.isGameOver = true;
+        
+        // Play game over sound
+        this.playSound('game_over', 0.7);
+        
+        // Store final score
+        GAME.score = this.score;
+        
+        // Show immediate game over text
+        const gameOverText = this.add.text(
+            this.cameras.main.width / 2,
+            this.cameras.main.height / 2,
+            'GAME OVER',
+            {
+                font: '64px Arial',
+                fill: '#ff0000',
+                stroke: '#000000',
+                strokeThickness: 6
+            }
+        ).setOrigin(0.5);
+        
+        // Transition to game over scene after a delay
+        this.time.delayedCall(2000, () => {
+            console.log("Transitioning to GameOverScene");
+            
+            // Stop music
+            if (this.bgMusic) {
+                try {
+                    this.bgMusic.stop();
+                } catch (err) {
+                    console.warn("Error stopping music:", err);
+                }
+            }
+            
+            // Reset level before going to game over screen
+            GAME.level = 1;
+            this.scene.start('GameOverScene');
+        }, [], this);
+    }
+    
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        
+        if (this.isPaused) {
+            // Pause the physics
+            this.physics.pause();
+            
+            // Show pause menu
+            this.pauseBackground.setVisible(true);
+            this.pauseText.setVisible(true);
+            this.resumeButton.setVisible(true);
+            this.quitButton.setVisible(true);
+        } else {
+            // Resume the physics
+            this.physics.resume();
+            
+            // Hide pause menu
+            this.pauseBackground.setVisible(false);
+            this.pauseText.setVisible(false);
+            this.resumeButton.setVisible(false);
+            this.quitButton.setVisible(false);
+        }
+    }
+    
+    // Utility method to safely play sounds
+    playSound(key, volume = 0.5) {
         try {
-            this.bgMusic.stop();
+            if (!GAME.isMuted && this.cache.audio.exists(key)) {
+                this.sound.play(key, { volume: volume });
+            }
         } catch (err) {
-            console.warn("Error stopping music:", err);
+            console.warn(`Could not play ${key} sound:`, err);
         }
     }
     
-    // Reset level before going to game over screen
-    GAME.level = 1;
-    this.scene.start('GameOverScene');
-}, [], this);
-}
-
-togglePause() {
-this.isPaused = !this.isPaused;
-
-if (this.isPaused) {
-    // Pause the physics
-    this.physics.pause();
-    
-    // Show pause menu
-    this.pauseBackground.setVisible(true);
-    this.pauseText.setVisible(true);
-    this.resumeButton.setVisible(true);
-    this.quitButton.setVisible(true);
-} else {
-    // Resume the physics
-    this.physics.resume();
-    
-    // Hide pause menu
-    this.pauseBackground.setVisible(false);
-    this.pauseText.setVisible(false);
-    this.resumeButton.setVisible(false);
-    this.quitButton.setVisible(false);
-}
-}
-
-// Utility method to safely play sounds
-playSound(key, volume = 0.5) {
-try {
-    if (!GAME.isMuted && this.cache.audio.exists(key)) {
-        this.sound.play(key, { volume: volume });
+    // Method to safely initialize background music
+    safelyInitBackgroundMusic() {
+        try {
+            if (this.cache.audio.exists('bg_music')) {
+                this.bgMusic = this.sound.add('bg_music', {
+                    volume: 0.4,
+                    loop: true
+                });
+                
+                if (!GAME.isMuted) {
+                    // Don't use promise/catch as Phaser's sound.play() doesn't return a promise
+                    this.bgMusic.play();
+                }
+            } else {
+                console.warn("Background music not found in cache");
+            }
+        } catch (err) {
+            console.error("Error initializing background music:", err);
+        }
     }
-} catch (err) {
-    console.warn(`Could not play ${key} sound:`, err);
-}
-}
-
-// Method to safely initialize background music
-safelyInitBackgroundMusic() {
-try {
-    if (this.cache.audio.exists('bg_music')) {
-        this.bgMusic = this.sound.add('bg_music', {
-            volume: 0.4,
-            loop: true
+    
+    // Add debug support
+    addDebugInfo() {
+        // Create debug text
+        this.debugText = this.add.text(
+            10, 
+            this.cameras.main.height - 60, 
+            'Debug: Press D to toggle', 
+            {
+                font: '14px Arial',
+                fill: '#ffff00'
+            }
+        ).setScrollFactor(0).setDepth(1000);
+        
+        this.debugMode = false;
+        this.debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+        
+        this.input.keyboard.on('keydown-D', () => {
+            this.debugMode = !this.debugMode;
+            this.debugText.setText(`Debug: ${this.debugMode ? 'ON' : 'OFF'}`);
+            
+            // Toggle debug visualization for collision areas
+            if (this.physics.world.debugGraphic) {
+                this.physics.world.debugGraphic.setVisible(this.debugMode);
+            } else if (this.debugMode) {
+                this.physics.world.createDebugGraphic();
+            }
         });
+    }
+    
+    // Update debug information
+    updateDebugInfo() {
+        let debugInfo = `Debug: ON\n`;
+        debugInfo += `FPS: ${Math.round(this.game.loop.actualFps)}\n`;
+        debugInfo += `Level: ${this.level}\n`;
+        debugInfo += `Player Health: ${this.playerHealth}\n`;
+        debugInfo += `Lives: ${this.playerLives}\n`;
+        debugInfo += `Enemies: ${this.enemyManager.enemies.countActive()}\n`;
+        debugInfo += `Player Bullets: ${this.playerBullets.countActive()}\n`;
+        debugInfo += `Enemy Bullets: ${this.enemyBullets.countActive()}\n`;
         
-        if (!GAME.isMuted) {
-            // Don't use promise/catch as Phaser's sound.play() doesn't return a promise
-            this.bgMusic.play();
+        this.debugText.setText(debugInfo);
+    }
+    
+    // Resize method to handle different screen resolutions
+    resize(gameSize) {
+        // Update the UI manager
+        if (this.uiManager) {
+            this.uiManager.resize(gameSize.width, gameSize.height);
         }
-    } else {
-        console.warn("Background music not found in cache");
-    }
-} catch (err) {
-    console.error("Error initializing background music:", err);
-}
-}
-
-// Add debug support
-addDebugInfo() {
-// Create debug text
-this.debugText = this.add.text(
-    10, 
-    this.cameras.main.height - 60, 
-    'Debug: Press D to toggle', 
-    {
-        font: '14px Arial',
-        fill: '#ffff00'
-    }
-).setScrollFactor(0).setDepth(1000);
-
-this.debugMode = false;
-this.debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-
-this.input.keyboard.on('keydown-D', () => {
-    this.debugMode = !this.debugMode;
-    this.debugText.setText(`Debug: ${this.debugMode ? 'ON' : 'OFF'}`);
-    
-    // Toggle debug visualization for collision areas
-    if (this.physics.world.debugGraphic) {
-        this.physics.world.debugGraphic.setVisible(this.debugMode);
-    } else if (this.debugMode) {
-        this.physics.world.createDebugGraphic();
-    }
-});
-}
-
-// Update debug information
-updateDebugInfo() {
-let debugInfo = `Debug: ON\n`;
-debugInfo += `FPS: ${Math.round(this.game.loop.actualFps)}\n`;
-debugInfo += `Level: ${this.level}\n`;
-debugInfo += `Player Health: ${this.playerHealth}\n`;
-debugInfo += `Lives: ${this.playerLives}\n`;
-debugInfo += `Enemies: ${this.enemyManager.enemies.countActive()}\n`;
-debugInfo += `Player Bullets: ${this.playerBullets.countActive()}\n`;
-debugInfo += `Enemy Bullets: ${this.enemyBullets.countActive()}\n`;
-
-this.debugText.setText(debugInfo);
-}
-
-// Resize method to handle different screen resolutions
-resize(gameSize) {
-// Update the UI manager
-if (this.uiManager) {
-    this.uiManager.resize(gameSize.width, gameSize.height);
-}
-
-// Update level text position
-if (this.levelText) {
-    this.levelText.setPosition(gameSize.width - 20, 60);
-}
-
-// Update pause menu
-if (this.pauseBackground) {
-    this.pauseBackground.setPosition(gameSize.width / 2, gameSize.height / 2);
-    this.pauseBackground.setSize(gameSize.width, gameSize.height);
-}
-
-if (this.pauseText) {
-    this.pauseText.setPosition(gameSize.width / 2, gameSize.height / 2 - 50);
-}
-
-if (this.resumeButton) {
-    this.resumeButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 20);
-}
-
-if (this.quitButton) {
-    this.quitButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 70);
-}
-
-// Update debug text position
-if (this.debugText) {
-    this.debugText.setPosition(10, gameSize.height - 60);
-}
-
-// Update mobile controls if present
-if (GAME.isMobile) {
-    // Update D-pad position
-    if (this.dpad) {
-        this.dpad.setPosition(100, gameSize.height - 100);
         
-        // Update hit zones
-        const dpadRadius = 50;
-        const dpadCenterX = 100;
-        const dpadCenterY = gameSize.height - 100;
+        // Update level text position
+        if (this.levelText) {
+            this.levelText.setPosition(gameSize.width - 20, 60);
+        }
         
-        // We need to recreate the zones since they don't have a setPosition method
-        if (this.leftZone) this.leftZone.destroy();
-        if (this.rightZone) this.rightZone.destroy();
-        if (this.upZone) this.upZone.destroy();
-        if (this.downZone) this.downZone.destroy();
+        // Update pause menu
+        if (this.pauseBackground) {
+            this.pauseBackground.setPosition(gameSize.width / 2, gameSize.height / 2);
+            this.pauseBackground.setSize(gameSize.width, gameSize.height);
+        }
         
-        this.leftZone = this.add.zone(dpadCenterX - dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
-            .setOrigin(0.5)
-            .setInteractive()
-            .on('pointerdown', () => { this.mobileControls.left = true; })
-            .on('pointerup', () => { this.mobileControls.left = false; })
-            .on('pointerout', () => { this.mobileControls.left = false; });
+        if (this.pauseText) {
+            this.pauseText.setPosition(gameSize.width / 2, gameSize.height / 2 - 50);
+        }
         
-        this.rightZone = this.add.zone(dpadCenterX + dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
-            .setOrigin(0.5)
-            .setInteractive()
-            .on('pointerdown', () => { this.mobileControls.right = true; })
-            .on('pointerup', () => { this.mobileControls.right = false; })
-            .on('pointerout', () => { this.mobileControls.right = false; });
+        if (this.resumeButton) {
+            this.resumeButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 20);
+        }
         
-        this.upZone = this.add.zone(dpadCenterX, dpadCenterY - dpadRadius/2, dpadRadius, dpadRadius)
-            .setOrigin(0.5)
-            .setInteractive()
-            .on('pointerdown', () => { this.mobileControls.up = true; })
-            .on('pointerup', () => { this.mobileControls.up = false; })
-            .on('pointerout', () => { this.mobileControls.up = false; });
+        if (this.quitButton) {
+            this.quitButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 70);
+        }
         
-        this.downZone = this.add.zone(dpadCenterX, dpadCenterY + dpadRadius/2, dpadRadius, dpadRadius)
-            .setOrigin(0.5)
-            .setInteractive()
-            .on('pointerdown', () => { this.mobileControls.down = true; })
-            .on('pointerup', () => { this.mobileControls.down = false; })
-            .on('pointerout', () => { this.mobileControls.down = false; });
-    }
-    
-    // Update fire button position
-    if (this.fireButton) {
-        this.fireButton.setPosition(gameSize.width - 80, gameSize.height - 100);
-    }
-    
-    // Update mute button position
-    if (this.muteButton) {
-        this.muteButton.setPosition(gameSize.width - 40, 40);
+        // Update debug text position
+        if (this.debugText) {
+            this.debugText.setPosition(10, gameSize.height - 60);
+        }
         
-        // Update mute text if using fallback
-        if (this.muteText) {
-            this.muteText.setPosition(gameSize.width - 40, 40);
+        // Update mobile controls if present
+        if (GAME.isMobile) {
+            // Update D-pad position
+            if (this.dpad) {
+                this.dpad.setPosition(100, gameSize.height - 100);
+                
+                // Update hit zones
+                const dpadRadius = 50;
+                const dpadCenterX = 100;
+                const dpadCenterY = gameSize.height - 100;
+                
+                // We need to recreate the zones since they don't have a setPosition method
+                if (this.leftZone) this.leftZone.destroy();
+                if (this.rightZone) this.rightZone.destroy();
+                if (this.upZone) this.upZone.destroy();
+                if (this.downZone) this.downZone.destroy();
+                
+                // Recreate the zones at the new position
+                this.leftZone = this.add.zone(dpadCenterX - dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
+                    .setOrigin(0.5)
+                    .setInteractive()
+                    .on('pointerdown', () => { this.mobileControls.left = true; })
+                    .on('pointerup', () => { this.mobileControls.left = false; })
+                    .on('pointerout', () => { this.mobileControls.left = false; });
+                
+                this.rightZone = this.add.zone(dpadCenterX + dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
+                    .setOrigin(0.5)
+                    .setInteractive()
+                    .on('pointerdown', () => { this.mobileControls.right = true; })
+                    .on('pointerup', () => { this.mobileControls.right = false; })
+                    .on('pointerout', () => { this.mobileControls.right = false; });
+                
+                this.upZone = this.add.zone(dpadCenterX, dpadCenterY - dpadRadius/2, dpadRadius, dpadRadius)
+                    .setOrigin(0.5)
+                    .setInteractive()
+                    .on('pointerdown', () => { this.mobileControls.up = true; })
+                    .on('pointerup', () => { this.mobileControls.up = false; })
+                    .on('pointerout', () => { this.mobileControls.up = false; });
+                
+                this.downZone = this.add.zone(dpadCenterX, dpadCenterY + dpadRadius/2, dpadRadius, dpadRadius)
+                    .setOrigin(0.5)
+                    .setInteractive()
+                    .on('pointerdown', () => { this.mobileControls.down = true; })
+                    .on('pointerup', () => { this.mobileControls.down = false; })
+                    .on('pointerout', () => { this.mobileControls.down = false; });
+            }
+            
+            // Update fire button position
+            if (this.fireButton) {
+                this.fireButton.setPosition(gameSize.width - 80, gameSize.height - 100);
+            }
+            
+            // Update mute button position
+            if (this.muteButton) {
+                this.muteButton.setPosition(gameSize.width - 40, 40);
+                if (this.muteText) {
+                    this.muteText.setPosition(gameSize.width - 40, 40);
+                }
+            }
         }
     }
-}
-}
 }

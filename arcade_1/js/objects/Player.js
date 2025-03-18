@@ -6,8 +6,11 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         scene.add.existing(this);
         scene.physics.add.existing(this);
         
-        // Set collision body size
-        this.setSize(this.width * 0.8, this.height * 0.8);
+        // Set appropriate scale for player ship
+        this.setScale(0.08);
+        
+        // Set collision body size - make sure this happens after setting scale
+        this.setSize(this.displayWidth * 0.8, this.displayHeight * 0.8);
         
         // Set bounds to keep player within game area
         this.setCollideWorldBounds(true);
@@ -15,10 +18,15 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         // Initialize player state
         this.invulnerable = false;
         
-        // Apply world bounds
-        const gameWidth = scene.cameras.main.width;
-        const gameHeight = scene.cameras.main.height;
-        this.body.setBoundsRectangle(new Phaser.Geom.Rectangle(0, 0, gameWidth, gameHeight));
+        // Make sure the physics body exists before setting bounds
+        if (this.body) {
+            // Apply world bounds
+            const gameWidth = scene.cameras.main.width;
+            const gameHeight = scene.cameras.main.height;
+            this.body.setBoundsRectangle(new Phaser.Geom.Rectangle(0, 0, gameWidth, gameHeight));
+        } else {
+            console.error("Player physics body not created properly");
+        }
     }
     
     makeInvulnerable(duration) {

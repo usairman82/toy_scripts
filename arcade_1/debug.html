@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .asset-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .asset-item {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        img {
+            max-width: 100px;
+            max-height: 100px;
+            display: block;
+            margin: 0 auto;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Asset Debug</h1>
+    
+    <h2>Sprite Assets</h2>
+    <div class="asset-container" id="sprite-container">
+        <!-- Sprites will be added here -->
+    </div>
+    
+    <script>
+        // List of sprite assets to check
+        const spriteAssets = [
+            { name: 'player_ship', path: 'assets/sprites/player_ship.png' },
+            { name: 'enemy_1', path: 'assets/sprites/enemy_1.png' },
+            { name: 'enemy_2', path: 'assets/sprites/enemy_2.png' },
+            { name: 'enemy_boss', path: 'assets/sprites/enemy_boss.png' },
+            { name: 'player_bullet', path: 'assets/sprites/player_bullet.png' },
+            { name: 'enemy_bullet', path: 'assets/sprites/enemy_bullet.png' },
+            { name: 'background', path: 'assets/sprites/background.png' }
+        ];
+        
+        // Function to create asset display
+        function createAssetDisplay(asset) {
+            const container = document.createElement('div');
+            container.className = 'asset-item';
+            
+            const img = document.createElement('img');
+            img.src = asset.path;
+            img.alt = asset.name;
+            
+            // Add error handling
+            img.onerror = function() {
+                this.style.display = 'none';
+                const error = document.createElement('div');
+                error.textContent = 'Failed to load';
+                error.style.color = 'red';
+                container.appendChild(error);
+            };
+            
+            const name = document.createElement('p');
+            name.textContent = asset.name;
+            
+            container.appendChild(img);
+            container.appendChild(name);
+            
+            return container;
+        }
+        
+        // Add sprites to the container
+        const spriteContainer = document.getElementById('sprite-container');
+        spriteAssets.forEach(asset => {
+            spriteContainer.appendChild(createAssetDisplay(asset));
+        });
+    </script>
+</body>
+</html>

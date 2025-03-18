@@ -24,7 +24,7 @@ class MenuScene extends Phaser.Scene {
             .setScrollFactor(0);
 
         // Add title
-        this.titleText = this.add.text(this.cameras.main.width / 2, 100, 'GALAGA CLONE', {
+        this.titleText = this.add.text(this.cameras.main.width / 2, 100, 'NEOGALAXIA', {
             font: '48px Arial',
             fill: '#ffffff',
             stroke: '#000000',
@@ -70,7 +70,7 @@ class MenuScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Add developer credits
-        this.creditsText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 50, 'Galaga Clone - Web Game Dev Project', {
+        this.creditsText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 50, 'Neogalaxia - Web Game Dev Project', {
             font: '16px Arial',
             fill: '#ffffff'
         }).setOrigin(0.5);

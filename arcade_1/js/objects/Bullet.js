@@ -1,23 +1,52 @@
 class Bullet extends Phaser.Physics.Arcade.Sprite {
-    constructor(scene, x, y, texture, direction, speed, angle = 0) {
+    constructor(scene, x, y, texture, direction, speed, angle = 0, targetX = null, targetY = null) {
         super(scene, x, y, texture);
         
         // Add to scene and enable physics
         scene.add.existing(this);
         scene.physics.add.existing(this);
         
-        // Debug log the initial size
-        this.logBulletSize('Initial size');
+        // Set bullet scale - make it EXTREMELY small
+        this.setScale(0.02);
         
-        // Set appropriate bullet size based on game dimensions
-        this.setBulletSize(texture);
+        // Set collision body size - make it larger than the sprite for better collision detection
+        this.setSize(this.width * 2, this.height * 2);
         
-        // Set velocity based on direction
+        // Store direction and speed
         this.direction = direction;
-        this.speed = speed;
         
-        // Apply velocity with safety checks
-        this.applyVelocity(direction, speed, angle);
+        // COMPLETELY DIFFERENT APPROACH - Use Phaser's built-in projectile system
+        const BULLET_SPEED = 300; // Balanced speed - fast enough to reach targets but not too fast
+        
+        // Make sure the physics body is enabled and active
+        this.body.enable = true;
+        this.body.moves = true;
+        
+        // Use Phaser's built-in projectile system
+        if (targetX !== null && targetY !== null) {
+            // If we have a target, fire directly at it
+            scene.physics.moveToObject(this, { x: targetX, y: targetY }, BULLET_SPEED);
+        } else {
+            // Otherwise use simple directional movement
+            if (direction === 'up') {
+                this.body.velocity.y = -BULLET_SPEED;
+            } else {
+                this.body.velocity.y = BULLET_SPEED;
+            }
+        }
+        
+        // Double-check that velocity was set
+        if (this.body.velocity.x === 0 && this.body.velocity.y === 0) {
+            console.error("Bullet has zero velocity after setting! Forcing default velocity.");
+            if (direction === 'up') {
+                this.body.velocity.y = -BULLET_SPEED;
+            } else {
+                this.body.velocity.y = BULLET_SPEED;
+            }
+        }
+        
+        // Log actual velocity for debugging
+        console.log(`Bullet actual velocity: vx=${this.body.velocity.x}, vy=${this.body.velocity.y}`);
         
         // Add to the appropriate bullet group
         if (direction === 'up') {
@@ -26,123 +55,21 @@ class Bullet extends Phaser.Physics.Arcade.Sprite {
             scene.enemyBullets.add(this);
         }
         
-        // Log the final bullet size after all adjustments
-        this.logBulletSize('Final size');
-        
         // Set a timeout to destroy the bullet if it hasn't hit anything
-        scene.time.delayedCall(2000, () => {
+        // Increased timeout to ensure bullets have time to reach targets
+        scene.time.delayedCall(5000, () => {
             if (this.active) {
                 this.destroy();
             }
         });
     }
     
-    /**
-     * Sets the appropriate bullet size based on texture and game dimensions
-     * @param {string} texture - The bullet texture key
-     */
-    setBulletSize(texture) {
-        const gameWidth = this.scene.cameras.main.width;
-        const gameHeight = this.scene.cameras.main.height;
-        
-        // Maximum allowed bullet dimensions (percentage of screen)
-        const MAX_WIDTH_PERCENT = 0.03;  // 3% of screen width
-        const MAX_HEIGHT_PERCENT = 0.05; // 5% of screen height
-        
-        // Calculate maximum allowed dimensions in pixels
-        const maxWidth = gameWidth * MAX_WIDTH_PERCENT;
-        const maxHeight = gameHeight * MAX_HEIGHT_PERCENT;
-        
-        // Default scale factor for collision body
-        let scaleFactor = 0.8;
-        
-        // Different sizing for player vs enemy bullets
-        if (texture === 'player_bullet') {
-            // Player bullets are typically smaller and faster
-            this.setDisplaySize(
-                Math.min(this.width, maxWidth),
-                Math.min(this.height, maxHeight)
-            );
-        } else if (texture === 'enemy_bullet') {
-            // Enemy bullets might be slightly larger but still constrained
-            this.setDisplaySize(
-                Math.min(this.width, maxWidth * 1.2),
-                Math.min(this.height, maxHeight * 1.2)
-            );
-        } else {
-            // Generic fallback for any other bullet types
-            this.setDisplaySize(
-                Math.min(this.width, maxWidth),
-                Math.min(this.height, maxHeight)
-            );
-        }
-        
-        // Set collision body size slightly smaller than visual size
-        this.setSize(this.displayWidth * scaleFactor, this.displayHeight * scaleFactor);
-        
-        // Validate final size is reasonable
-        if (this.displayWidth > maxWidth * 1.5 || this.displayHeight > maxHeight * 1.5) {
-            console.warn(`Bullet size may be too large: ${this.displayWidth}x${this.displayHeight}`);
-        }
-    }
-    
-    /**
-     * Apply velocity based on direction with safety checks
-     * @param {string} direction - Direction of bullet movement
-     * @param {number} speed - Speed of the bullet
-     * @param {number} angle - Optional angle offset
-     */
-    applyVelocity(direction, speed, angle) {
-        // Ensure speed is within reasonable limits
-        const safeSpeed = Math.min(Math.max(speed, 50), 500);
-        
-        // Ensure angle is within reasonable limits
-        const safeAngle = Math.min(Math.max(angle, -100), 100);
-        
-        switch (direction) {
-            case 'up':
-                this.setVelocityY(-safeSpeed);
-                // Apply angle offset if any
-                if (safeAngle !== 0) {
-                    this.setVelocityX(safeAngle);
-                }
-                break;
-                
-            case 'down':
-                this.setVelocityY(safeSpeed);
-                // Apply angle offset if any
-                if (safeAngle !== 0) {
-                    this.setVelocityX(safeAngle);
-                }
-                break;
-                
-            case 'left':
-                this.setVelocityX(-safeSpeed);
-                break;
-                
-            case 'right':
-                this.setVelocityX(safeSpeed);
-                break;
-                
-            default:
-                console.warn(`Invalid bullet direction: ${direction}`);
-                this.setVelocityY(safeSpeed); // Default to downward if invalid
-        }
-    }
-    
-    /**
-     * Log bullet size information for debugging
-     * @param {string} label - Label for the log message
-     */
-    logBulletSize(label) {
-        console.debug(
-            `Bullet [${label}]: texture=${this.texture.key}, ` +
-            `width=${this.width.toFixed(1)}, height=${this.height.toFixed(1)}, ` +
-            `displayWidth=${this.displayWidth?.toFixed(1)}, displayHeight=${this.displayHeight?.toFixed(1)}`
-        );
-    }
-    
     update() {
+        // Check if scene exists before accessing properties
+        if (!this.scene || !this.scene.cameras || !this.scene.cameras.main) {
+            return; // Exit early if scene or cameras are not available
+        }
+        
         // Destroy if out of bounds
         const gameWidth = this.scene.cameras.main.width;
         const gameHeight = this.scene.cameras.main.height;
@@ -150,6 +77,22 @@ class Bullet extends Phaser.Physics.Arcade.Sprite {
         if (this.y < -50 || this.y > gameHeight + 50 || 
             this.x < -50 || this.x > gameWidth + 50) {
             this.destroy();
+        }
+        
+        // Check if body exists before accessing velocity
+        if (this.body) {
+            // CONTINUOUS FORCE - Keep applying force to ensure bullet keeps moving
+            const FORCE = 300; // Balanced force - fast enough to reach targets but not too fast
+            if (this.direction === 'up') {
+                this.body.velocity.y = -FORCE;
+            } else {
+                this.body.velocity.y = FORCE;
+            }
+        }
+        
+        // Debug log position and velocity
+        if (this.scene && this.scene.time && this.body && this.scene.time.now % 60 === 0) { // Only log every 60ms to avoid spam
+            console.log(`Bullet at (${this.x.toFixed(0)}, ${this.y.toFixed(0)}) with velocity (${this.body.velocity.x.toFixed(0)}, ${this.body.velocity.y.toFixed(0)})`);
         }
     }
 }

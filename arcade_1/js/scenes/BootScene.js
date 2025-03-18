@@ -5,6 +5,8 @@ class BootScene extends Phaser.Scene {
     }
 
     preload() {
+        console.log("BootScene preload started");
+        
         // Display loading text
         this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 - 50, 'Loading...', {
             font: '24px Arial',
@@ -22,23 +24,34 @@ class BootScene extends Phaser.Scene {
             progressBar.clear();
             progressBar.fillStyle(0xffffff, 1);
             progressBar.fillRect(250, 280, 300 * value, 30);
+            console.log(`Loading progress: ${Math.floor(value * 100)}%`);
         });
 
         this.load.on('complete', () => {
             progressBar.destroy();
             progressBox.destroy();
             this.assetsLoaded = true;
+            console.log("All assets loaded successfully");
         });
 
         // Debug loading process
         this.load.on('filecomplete', (key, type, data) => {
             console.log(`Loaded asset: ${key} (${type})`);
+            
+            // For image assets, log their dimensions
+            if (type === 'image') {
+                console.log(`Image dimensions for ${key}: ${data.width}x${data.height}`);
+            }
         });
 
         this.load.on('loaderror', (file) => {
             console.error(`Error loading: ${file.key} (${file.url})`);
+            console.error("Error details:", file.src);
         });
 
+        // Set the base URL for all assets
+        this.load.setBaseURL('./');
+        
         // Ship sprites
         this.load.image('player_ship', 'assets/sprites/player_ship.png');
         this.load.image('enemy_1', 'assets/sprites/enemy_1.png');
@@ -108,6 +121,8 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
+        console.log("BootScene create started");
+        
         // Create explosion animation
         this.anims.create({
             key: 'explode',
@@ -121,11 +136,38 @@ class BootScene extends Phaser.Scene {
         // Generate silent audio fallbacks for all sound effects
         this.generateSilentAudioFallbacks();
         
-        // Ensure bullet textures are properly sized
-        this.ensureBulletTexturesAreProperlyScaled();
+        // Debug: Check if all textures are loaded correctly
+        this.debugTextureLoading();
         
         // Start the main menu scene
+        console.log("Starting MenuScene");
         this.scene.start('MenuScene');
+    }
+    
+    /**
+     * Debug function to check if all textures are loaded correctly
+     */
+    debugTextureLoading() {
+        const textureKeys = [
+            'player_ship', 'enemy_1', 'enemy_2', 'enemy_boss',
+            'player_bullet', 'enemy_bullet', 'background',
+            'powerup_shield', 'powerup_double', 'powerup_speed'
+        ];
+        
+        console.log("Checking texture loading status:");
+        
+        textureKeys.forEach(key => {
+            if (this.textures.exists(key)) {
+                const frame = this.textures.getFrame(key);
+                console.log(`✅ Texture '${key}' loaded successfully: ${frame.width}x${frame.height}`);
+                
+                // Create a test sprite to verify rendering
+                const testSprite = this.add.sprite(-100, -100, key);
+                console.log(`   Sprite created with dimensions: ${testSprite.width}x${testSprite.height}`);
+            } else {
+                console.error(`❌ Texture '${key}' NOT FOUND`);
+            }
+        });
     }
     
     /**
@@ -141,86 +183,6 @@ class BootScene extends Phaser.Scene {
                 `Sprite '${key}' dimensions (${data.width}x${data.height}) ` +
                 `exceed recommended maximum (${maxWidth}x${maxHeight})`
             );
-        }
-    }
-    
-    /**
-     * Ensures bullet textures are properly scaled if they're too large
-     */
-    ensureBulletTexturesAreProperlyScaled() {
-        // Maximum dimensions for bullet sprites (in pixels)
-        const MAX_BULLET_WIDTH = 30;
-        const MAX_BULLET_HEIGHT = 30;
-        
-        // Check and fix player bullet texture
-        this.scaleTextureIfNeeded('player_bullet', MAX_BULLET_WIDTH, MAX_BULLET_HEIGHT);
-        
-        // Check and fix enemy bullet texture
-        this.scaleTextureIfNeeded('enemy_bullet', MAX_BULLET_WIDTH, MAX_BULLET_HEIGHT);
-    }
-    
-    /**
-     * Scales a texture if it exceeds maximum dimensions
-     * @param {string} key - The texture key
-     * @param {number} maxWidth - Maximum allowed width
-     * @param {number} maxHeight - Maximum allowed height
-     */
-    scaleTextureIfNeeded(key, maxWidth, maxHeight) {
-        try {
-            // Skip if texture doesn't exist
-            if (!this.textures.exists(key)) {
-                console.warn(`Texture '${key}' not found for scaling check`);
-                return;
-            }
-            
-            const frame = this.textures.getFrame(key);
-            if (!frame) return;
-            
-            const width = frame.width;
-            const height = frame.height;
-            
-            // Log the original dimensions
-            console.log(`Checking texture '${key}': ${width}x${height}`);
-            
-            // If dimensions are acceptable, no need to scale
-            if (width <= maxWidth && height <= maxHeight) {
-                return;
-            }
-            
-            console.warn(
-                `Texture '${key}' is too large (${width}x${height}). ` +
-                `Creating scaled version.`
-            );
-            
-            // Calculate scale factor to fit within max dimensions
-            const scaleX = maxWidth / width;
-            const scaleY = maxHeight / height;
-            const scale = Math.min(scaleX, scaleY);
-            
-            // Create a new scaled texture
-            const newKey = `${key}_scaled`;
-            const newWidth = Math.floor(width * scale);
-            const newHeight = Math.floor(height * scale);
-            
-            // Create a new texture using the render texture
-            const rt = this.make.renderTexture({
-                width: newWidth,
-                height: newHeight
-            }, true);
-            
-            rt.draw(key, 0, 0, newWidth, newHeight);
-            rt.saveTexture(newKey);
-            
-            // Replace the original texture reference with the scaled version
-            this.textures.remove(key);
-            this.textures.addKey(key, this.textures.get(newKey));
-            
-            console.log(
-                `Created scaled texture for '${key}': ` +
-                `${width}x${height} → ${newWidth}x${newHeight}`
-            );
-        } catch (error) {
-            console.error(`Error scaling texture '${key}':`, error);
         }
     }
     
@@ -255,16 +217,11 @@ class BootScene extends Phaser.Scene {
             if (audioContext) {
                 const buffer = audioContext.createBuffer(1, 22050, 44100);
                 
-                // Create an audio element and add it to cache
-                const audioElement = new Audio();
-                audioElement.src = URL.createObjectURL(new Blob([this.wavFromAudioBuffer(buffer)], { type: 'audio/wav' }));
-                
-                // Manually add it to Phaser's audio cache
+                // Instead of creating a Blob URL, directly add the buffer to Phaser's audio cache
                 this.cache.audio.add(key, {
                     type: 'audio',
                     key: key,
-                    url: audioElement.src,
-                    data: audioElement,
+                    data: buffer,
                     duration: 0.5,
                     locked: false
                 });
@@ -275,44 +232,6 @@ class BootScene extends Phaser.Scene {
             }
         } catch (e) {
             console.error(`Error creating silent audio fallback for ${key}:`, e);
-        }
-    }
-    
-    wavFromAudioBuffer(audioBuffer) {
-        const numOfChannels = audioBuffer.numberOfChannels;
-        const length = audioBuffer.length * numOfChannels * 2;
-        const buffer = new ArrayBuffer(44 + length);
-        const view = new DataView(buffer);
-        
-        // Write WAV header
-        this.writeString(view, 0, 'RIFF');
-        view.setUint32(4, 36 + length, true);
-        this.writeString(view, 8, 'WAVE');
-        this.writeString(view, 12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true);
-        view.setUint16(22, numOfChannels, true);
-        view.setUint32(24, audioBuffer.sampleRate, true);
-        view.setUint32(28, audioBuffer.sampleRate * numOfChannels * 2, true);
-        view.setUint16(32, numOfChannels * 2, true);
-        view.setUint16(34, 16, true);
-        this.writeString(view, 36, 'data');
-        view.setUint32(40, length, true);
-        
-        // Write silent audio data (all zeros)
-        const dataOffset = 44;
-        for (let i = 0; i < audioBuffer.length; i++) {
-            for (let c = 0; c < numOfChannels; c++) {
-                view.setInt16(dataOffset + (i * numOfChannels + c) * 2, 0, true);
-            }
-        }
-        
-        return buffer;
-    }
-    
-    writeString(view, offset, string) {
-        for (let i = 0; i < string.length; i++) {
-            view.setUint8(offset + i, string.charCodeAt(i));
         }
     }
 }
