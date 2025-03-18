@@ -275,7 +275,7 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
         const halfWidth = this.displayWidth / 2;
         const halfHeight = this.displayHeight / 2;
         
-        // Check horizontal boundaries
+        // Check horizontal boundaries - keep enemies within horizontal bounds
         if (this.x - halfWidth < bounds.left) {
             // Left boundary - reverse direction and place at boundary
             this.x = bounds.left + halfWidth;
@@ -287,37 +287,96 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
         }
         
         // Check vertical boundaries
-        if (this.y < bounds.top - halfHeight) {
-            // Enemy is completely off-screen at the top, wrap to bottom
-            this.y = gameHeight - halfHeight;
+        // Add property to track if enemy is in transition (off-screen)
+        if (!this.hasOwnProperty('isOffScreen')) {
+            this.isOffScreen = false;
+            this.offScreenTimer = null;
+        }
+        
+        // If enemy is already marked as off-screen, don't process further
+        if (this.isOffScreen) {
+            return;
+        }
+        
+        // Check if enemy is going off the top of the screen
+        if (this.y + halfHeight < bounds.top) {
+            // Enemy is completely off-screen at the top
+            this.isOffScreen = true;
             
-            // Randomize horizontal position when wrapping to bottom
-            this.x = Phaser.Math.Between(bounds.left + halfWidth, bounds.right - halfWidth);
+            // Store original velocity for restoration
+            this.originalVelocityX = this.body.velocity.x;
+            this.originalVelocityY = this.body.velocity.y;
             
-            // Ensure vertical velocity is positive when wrapping to bottom
-            if (this.body.velocity.y < 0) {
-                this.body.velocity.y = Math.abs(this.body.velocity.y);
-            }
-        } else if (this.y - halfHeight < bounds.top) {
+            // Stop the enemy movement while off-screen
+            this.body.velocity.setTo(0, 0);
+            
+            // Make enemy invisible
+            this.setVisible(false);
+            
+            // Set a timer to bring the enemy back at the bottom after a delay
+            this.offScreenTimer = this.scene.time.delayedCall(Phaser.Math.Between(1000, 2000), () => {
+                // Position at bottom of screen
+                this.y = gameHeight - halfHeight;
+                
+                // Randomize horizontal position when coming back
+                this.x = Phaser.Math.Between(bounds.left + halfWidth * 2, bounds.right - halfWidth * 2);
+                
+                // Restore velocity, ensuring it's moving downward
+                this.body.velocity.x = this.originalVelocityX;
+                this.body.velocity.y = Math.abs(this.originalVelocityY);
+                
+                // Make enemy visible again
+                this.setVisible(true);
+                
+                // Reset off-screen flag
+                this.isOffScreen = false;
+                this.offScreenTimer = null;
+            });
+        } 
+        // Check if enemy is going off the bottom of the screen
+        else if (this.y - halfHeight > gameHeight) {
+            // Enemy is completely off-screen at the bottom
+            this.isOffScreen = true;
+            
+            // Store original velocity for restoration
+            this.originalVelocityX = this.body.velocity.x;
+            this.originalVelocityY = this.body.velocity.y;
+            
+            // Stop the enemy movement while off-screen
+            this.body.velocity.setTo(0, 0);
+            
+            // Make enemy invisible
+            this.setVisible(false);
+            
+            // Set a timer to bring the enemy back at the top after a delay
+            this.offScreenTimer = this.scene.time.delayedCall(Phaser.Math.Between(1000, 2000), () => {
+                // Position at top of screen
+                this.y = bounds.top + halfHeight;
+                
+                // Randomize horizontal position when coming back
+                this.x = Phaser.Math.Between(bounds.left + halfWidth * 2, bounds.right - halfWidth * 2);
+                
+                // Restore velocity, ensuring it's moving downward
+                this.body.velocity.x = this.originalVelocityX;
+                this.body.velocity.y = -Math.abs(this.originalVelocityY);
+                
+                // Make enemy visible again
+                this.setVisible(true);
+                
+                // Reset off-screen flag
+                this.isOffScreen = false;
+                this.offScreenTimer = null;
+            });
+        }
+        // Check if enemy is approaching the top boundary but not completely off-screen
+        else if (this.y - halfHeight < bounds.top) {
             // Top boundary - reverse direction and place at boundary
             this.y = bounds.top + halfHeight;
             this.body.velocity.y = Math.abs(this.body.velocity.y);
-        } else if (this.y + halfHeight > gameHeight) {
-            // Bottom boundary - if enemy goes below screen, wrap to top
-            // This ensures enemies that go off-screen at the bottom come back from the top
-            this.y = bounds.top + halfHeight;
-            
-            // Randomize horizontal position when wrapping to top
-            this.x = Phaser.Math.Between(bounds.left + halfWidth, bounds.right - halfWidth);
-            
-            // Ensure vertical velocity is negative when wrapping to top
-            if (this.body.velocity.y > 0) {
-                this.body.velocity.y = -Math.abs(this.body.velocity.y);
-            }
         }
         
         // For fast and boss enemies, ensure they don't get stuck moving only vertically
-        if (this.type === 'fast' || this.type === 'boss') {
+        if ((this.type === 'fast' || this.type === 'boss') && !this.isOffScreen) {
             // If vertical velocity is too high compared to horizontal, add some horizontal movement
             if (Math.abs(this.body.velocity.y) > 3 * Math.abs(this.body.velocity.x)) {
                 const horizontalDirection = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neogalaxia - Debug Mode</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Add pixelated font support */
+        @font-face {
+            font-family: 'Press Start 2P';
+            src: url('https://fonts.gstatic.com/s/pressstart2p/v14/e3t4euO8T-267oIAQAu6jDQyK3nVivNm4I81.woff2') format('woff2');
+        }
+        
+        /* Font preloader to prevent FOUT (Flash of Unstyled Text) */
+        .font-preloader {
+            font-family: 'Press Start 2P';
+            position: absolute;
+            left: -1000px;
+            visibility: hidden;
+        }
+        
+        /* Debug panel styles */
+        #debug-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 200px;
+            overflow: auto;
+        }
+        
+        #debug-panel h3 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: #ffffff;
+        }
+        
+        #key-status {
+            margin-bottom: 10px;
+        }
+        
+        .key-indicator {
+            display: inline-block;
+            margin-right: 10px;
+            padding: 3px 8px;
+            background-color: #333;
+            border-radius: 3px;
+        }
+        
+        .key-active {
+            background-color: #00aa00;
+        }
+    </style>
+</head>
+<body>
+    <!-- Font preloader -->
+    <div class="font-preloader">.</div>
+    
+    <!-- Debug panel -->
+    <div id="debug-panel">
+        <h3>Input Debug</h3>
+        <div id="key-status">
+            <div class="key-indicator" id="key-up">UP</div>
+            <div class="key-indicator" id="key-down">DOWN</div>
+            <div class="key-indicator" id="key-left">LEFT</div>
+            <div class="key-indicator" id="key-right">RIGHT</div>
+            <div class="key-indicator" id="key-w">W</div>
+            <div class="key-indicator" id="key-a">A</div>
+            <div class="key-indicator" id="key-s">S</div>
+            <div class="key-indicator" id="key-d">D</div>
+            <div class="key-indicator" id="key-space">SPACE</div>
+        </div>
+        <div id="debug-log">Waiting for input events...</div>
+    </div>
+    
+    <div id="game-container"></div>
+    
+    <!-- Load Phaser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
+    
+    <!-- Load game scripts -->
+    <script src="js/scenes/BootScene.js"></script>
+    <script src="js/scenes/MenuScene.js"></script>
+    <script src="js/scenes/GameScene.js"></script>
+    <script src="js/scenes/GameOverScene.js"></script>
+    <script src="js/objects/Player.js"></script>
+    <script src="js/objects/Enemy.js"></script>
+    <script src="js/objects/EnemyManager.js"></script>
+    <script src="js/objects/Bullet.js"></script>
+    <script src="js/objects/PowerUp.js"></script>
+    <script src="js/objects/UIManager.js"></script>
+    <script src="js/main.js"></script>
+    
+    <!-- Load debug script -->
+    <script src="js/debug-input.js"></script>
+    
+    <script>
+        // Enhanced debug functionality
+        const debugLog = document.getElementById('debug-log');
+        const keyIndicators = {
+            'ArrowUp': document.getElementById('key-up'),
+            'ArrowDown': document.getElementById('key-down'),
+            'ArrowLeft': document.getElementById('key-left'),
+            'ArrowRight': document.getElementById('key-right'),
+            'w': document.getElementById('key-w'),
+            'a': document.getElementById('key-a'),
+            's': document.getElementById('key-s'),
+            'd': document.getElementById('key-d'),
+            ' ': document.getElementById('key-space')
+        };
+        
+        // Track key states
+        const keyStates = {};
+        
+        // Update key indicator visuals
+        function updateKeyIndicator(key, isPressed) {
+            const indicator = keyIndicators[key];
+            if (indicator) {
+                if (isPressed) {
+                    indicator.classList.add('key-active');
+                } else {
+                    indicator.classList.remove('key-active');
+                }
+            }
+        }
+        
+        // Log to debug panel
+        function logDebug(message) {
+            const entry = document.createElement('div');
+            entry.textContent = message;
+            debugLog.appendChild(entry);
+            
+            // Limit log entries
+            while (debugLog.children.length > 10) {
+                debugLog.removeChild(debugLog.firstChild);
+            }
+            
+            // Auto-scroll to bottom
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+        
+        // Monitor key events at the document level
+        document.addEventListener('keydown', function(event) {
+            const key = event.key;
+            keyStates[key] = true;
+            updateKeyIndicator(key, true);
+            logDebug(`Key down: ${key}`);
+        });
+        
+        document.addEventListener('keyup', function(event) {
+            const key = event.key;
+            keyStates[key] = false;
+            updateKeyIndicator(key, false);
+            logDebug(`Key up: ${key}`);
+        });
+        
+        // Check if the game is capturing input
+        function checkGameInput() {
+            if (window.game && window.game.scene) {
+                const gameScene = window.game.scene.scenes.find(scene => 
+                    scene.sys.settings.key === 'GameScene' && scene.sys.settings.active);
+                
+                if (gameScene) {
+                    logDebug('GameScene is active');
+                    
+                    // Check if input is enabled
+                    if (gameScene.input && gameScene.input.keyboard) {
+                        logDebug('Keyboard input is enabled');
+                        
+                        // Check if keys are registered
+                        if (gameScene.cursors) {
+                            const cursorsStatus = {
+                                up: gameScene.cursors.up.isDown,
+                                down: gameScene.cursors.down.isDown,
+                                left: gameScene.cursors.left.isDown,
+                                right: gameScene.cursors.right.isDown
+                            };
+                            logDebug(`Cursors status: ${JSON.stringify(cursorsStatus)}`);
+                        }
+                        
+                        if (gameScene.wasd) {
+                            const wasdStatus = {
+                                w: gameScene.wasd.up.isDown,
+                                a: gameScene.wasd.left.isDown,
+                                s: gameScene.wasd.down.isDown,
+                                d: gameScene.wasd.right.isDown
+                            };
+                            logDebug(`WASD status: ${JSON.stringify(wasdStatus)}`);
+                        }
+                    } else {
+                        logDebug('Keyboard input is NOT enabled');
+                    }
+                } else {
+                    logDebug('GameScene is NOT active');
+                }
+            } else {
+                logDebug('Game or scene manager not found');
+            }
+        }
+        
+        // Check game input periodically
+        setInterval(checkGameInput, 5000);
+        
+        // Make sure the game container has focus
+        window.addEventListener('load', function() {
+            const gameContainer = document.getElementById('game-container');
+            if (gameContainer) {
+                gameContainer.focus();
+                logDebug('Focused game container');
+            }
+        });
+        
+        // Check for tabindex issues
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                const canvas = document.querySelector('canvas');
+                if (canvas) {
+                    if (!canvas.hasAttribute('tabindex')) {
+                        canvas.setAttribute('tabindex', '1');
+                        logDebug('Added tabindex to canvas');
+                        canvas.focus();
+                    } else {
+                        logDebug(`Canvas already has tabindex: ${canvas.getAttribute('tabindex')}`);
+                    }
+                } else {
+                    logDebug('Canvas element not found');
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

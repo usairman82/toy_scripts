@@ -22,11 +22,26 @@
         }
     </style>
 </head>
-<body>
+<body onload="trackEvent('page_load')">
     <!-- Font preloader -->
     <div class="font-preloader">.</div>
     
     <div id="game-container"></div>
+    
+    <!-- Tracking API -->
+    <script>
+        // Tracking API configuration
+        const lambdaUrl = "https://6jlbcsv4gwkdzefzgvhtzzfzpy0yplsl.lambda-url.us-west-2.on.aws/";
+        const siteId = "neogalaxia";
+        
+        // Function to send tracking request
+        function trackEvent(eventName) {
+            fetch(`${lambdaUrl}?site_id=${siteId}&page_name=${eventName}`, { method: 'GET' })
+                .then(response => response.json())
+                .then(data => console.log("Tracking success:", data))
+                .catch(error => console.error("Tracking error:", error));
+        }
+    </script>
     
     <!-- Load Phaser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>

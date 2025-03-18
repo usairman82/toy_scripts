@@ -34,6 +34,8 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
+        console.log("GameScene.create: Initializing game scene");
+        
         // Create scrolling background
         this.background = this.add.tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, 'background')
             .setOrigin(0)
@@ -94,6 +96,14 @@ class GameScene extends Phaser.Scene {
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+        
+        // Level adjustment keys
+        this.plusKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.PLUS);
+        this.equalsKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.EQUALS); // For + without shift
+        this.minusKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.MINUS); // Alternative key
+        this.numPlusKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ADD); // Numpad +
+        this.asteriskKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.EIGHT); // * (with shift)
+        this.numAsteriskKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_MULTIPLY); // Numpad *
         
         // Register input for kill screen code
         this.input.keyboard.on('keydown', this.checkKillScreenCode, this);
@@ -169,6 +179,22 @@ class GameScene extends Phaser.Scene {
             this.togglePause();
         }
         
+        // Check for level increase keys
+        if (Phaser.Input.Keyboard.JustDown(this.plusKey) || 
+            Phaser.Input.Keyboard.JustDown(this.equalsKey) || 
+            Phaser.Input.Keyboard.JustDown(this.minusKey) || 
+            Phaser.Input.Keyboard.JustDown(this.numPlusKey)) {
+            console.log("Level increase key detected (+)");
+            this.increaseLevel(1);
+        }
+        
+        // Check for asterisk key (shift+8) or numpad *
+        if ((Phaser.Input.Keyboard.JustDown(this.asteriskKey) && this.input.keyboard.isDown(Phaser.Input.Keyboard.KeyCodes.SHIFT)) || 
+            Phaser.Input.Keyboard.JustDown(this.numAsteriskKey)) {
+            console.log("Level increase key detected (*)");
+            this.increaseLevel(5);
+        }
+        
         // Update debug info if enabled
         if (this.debugMode && this.debugText) {
             this.updateDebugInfo();
@@ -186,6 +212,33 @@ class GameScene extends Phaser.Scene {
         this.player.body.setVelocity(0);
         
         const moveSpeed = this.powerups.speed.active ? 300 : 200;
+        
+        // Debug keyboard state
+        const keyboardState = {
+            cursors: {
+                left: this.cursors.left.isDown,
+                right: this.cursors.right.isDown,
+                up: this.cursors.up.isDown,
+                down: this.cursors.down.isDown
+            },
+            wasd: {
+                left: this.wasd.left.isDown,
+                right: this.wasd.right.isDown,
+                up: this.wasd.up.isDown,
+                down: this.wasd.down.isDown
+            },
+            space: this.spaceKey.isDown,
+            mobile: GAME.isMobile ? {
+                left: this.mobileControls?.left,
+                right: this.mobileControls?.right,
+                fire: this.mobileControls?.fire
+            } : null
+        };
+        
+        // Log keyboard state every 60 frames (about once per second)
+        if (this.debugMode && this.game.loop.frame % 60 === 0) {
+            console.log("Keyboard state:", keyboardState);
+        }
         
         // Handle keyboard input
         if (this.cursors.left.isDown || this.wasd.left.isDown || (GAME.isMobile && this.mobileControls?.left)) {
@@ -273,11 +326,24 @@ class GameScene extends Phaser.Scene {
                 GAME.level = 1;
                 this.scene.start('MenuScene');
             });
+            
+        // Add level controls info
+        this.levelControlsText = this.add.text(
+            this.cameras.main.width / 2,
+            this.cameras.main.height / 2 + 120,
+            'LEVEL CONTROLS:\n+ : Increase level by 1\nSHIFT+8(*) : Increase level by 5',
+            {
+                font: '18px Arial',
+                fill: '#aaaaaa',
+                align: 'center'
+            }
+        ).setOrigin(0.5);
         
         // Hide pause menu elements initially
         this.pauseText.setVisible(false);
         this.resumeButton.setVisible(false);
         this.quitButton.setVisible(false);
+        this.levelControlsText.setVisible(false);
     }
     
     createMobileControls() {
@@ -383,6 +449,31 @@ class GameScene extends Phaser.Scene {
                 fill: '#ffffff'
             }).setOrigin(0.5);
         }
+        
+        // Create level increase buttons
+        // Level +1 button
+        this.levelUpButton = this.add.circle(this.cameras.main.width - 40, 80, 20, 0x00aa00, 0.7)
+            .setInteractive()
+            .setStrokeStyle(2, 0xffffff)
+            .on('pointerdown', () => this.increaseLevel(1));
+            
+        // Add +1 text
+        this.levelUpButton.textObject = this.add.text(this.cameras.main.width - 40, 80, '+1', {
+            font: '16px Arial',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+        
+        // Level +5 button
+        this.levelUpFiveButton = this.add.circle(this.cameras.main.width - 40, 120, 20, 0x00aa00, 0.7)
+            .setInteractive()
+            .setStrokeStyle(2, 0xffffff)
+            .on('pointerdown', () => this.increaseLevel(5));
+            
+        // Add +5 text
+        this.levelUpFiveButton.textObject = this.add.text(this.cameras.main.width - 40, 120, '+5', {
+            font: '16px Arial',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
         
         // Initialize mobile control states
         this.mobileControls = {
@@ -636,297 +727,76 @@ class GameScene extends Phaser.Scene {
         this.uiManager.updateLives(this.playerLives);
     }
     
-    spawnPowerup(x, y) {
-        // Choose random power-up type
-        const powerupTypes = ['shield', 'doubleShot', 'speed'];
-        const type = powerupTypes[Phaser.Math.Between(0, 2)];
-        
-        // Create power-up sprite
-        const powerup = this.physics.add.sprite(x, y, 'powerup_' + type);
-        powerup.powerupType = type;
-        
-        // Add to powerup group
-        this.powerupItems.add(powerup);
-        
-        // Add downward velocity
-        powerup.setVelocityY(100);
-        
-        // Auto-destroy if not collected after 10 seconds
-        this.time.delayedCall(10000, () => {
-            if (powerup.active) {
-                powerup.destroy();
-            }
-        }, [], this);
-    }
-    
-    collectPowerup(player, powerup) {
-        // Add points
-        this.score += GAME.scoreValues.powerUp;
-        this.uiManager.updateScore(this.score);
-        
-        // Play pickup sound
-        this.playSound('powerup_pickup', 0.7);
-        
-        // Apply power-up effect
-        this.activatePowerup(powerup.powerupType);
-        
-        // Destroy the power-up sprite
-        powerup.destroy();
-    }
-    
-    activatePowerup(type) {
-        // Clear existing timeout if active
-        if (this.powerups[type].timer) {
-            this.time.removeEvent(this.powerups[type].timer);
-        }
-        
-        // Activate the power-up
-        this.powerups[type].active = true;
-        
-        // Set player visual effects based on power-up type
-        switch (type) {
-            case 'shield':
-                this.player.setTint(0x00ffff);
-                break;
-            case 'doubleShot':
-                this.player.setTint(0xff00ff);
-                break;
-            case 'speed':
-                this.player.setTint(0xffff00);
-                break;
-        }
-        
-        // Show power-up text (floating notification)
-        const powerupText = this.add.text(
-            this.cameras.main.width / 2,
-            100,
-            type.toUpperCase() + ' ACTIVATED!',
-            {
-                font: '24px Arial',
-                fill: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 4
-            }
-        ).setOrigin(0.5);
-        
-        // Fade out and remove the text
-        this.tweens.add({
-            targets: powerupText,
-            alpha: 0,
-            duration: 2000,
-            onComplete: () => powerupText.destroy()
-        });
-        
-        // Show power-up indicator in UI
-        this.uiManager.showPowerUp(type, 10000);
-        
-        // Set a timer to deactivate the power-up after 10 seconds
-        this.powerups[type].timer = this.time.delayedCall(10000, () => {
-            this.powerups[type].active = false;
-            this.powerups[type].timer = null;
-            
-            // Reset player tint
-            if (!this.powerups.shield.active && 
-                !this.powerups.doubleShot.active && 
-                !this.powerups.speed.active) {
-                this.player.clearTint();
-            }
-        }, [], this);
-    }
-    
-    startLevel(level) {
-        // Update level text
-        this.levelText.setText('LEVEL: ' + level);
-        
-        // Create enemies for this level
-        this.enemyManager.createWave(level);
-        
-        // Show level start text
-        const levelText = this.add.text(
-            this.cameras.main.width / 2,
-            this.cameras.main.height / 2,
-            'LEVEL ' + level,
-            {
-                font: '48px Arial',
-                fill: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 6
-            }
-        ).setOrigin(0.5);
-        
-        // Fade out and remove the text
-        this.tweens.add({
-            targets: levelText,
-            alpha: 0,
-            duration: 2000,
-            onComplete: () => levelText.destroy()
-        });
-    }
-    
-    triggerKillScreen() {
-        this.isKillScreen = true;
-        
-        // Play glitch sound
-        this.playSound('game_over', 0.5);
-        
-        // Scramble the graphics
-        this.cameras.main.shake(2000, 0.01);
-        this.cameras.main.flash(100, 255, 255, 255, true);
-        
-        // Flicker the sprites
-        this.enemyManager.enemies.getChildren().forEach(enemy => {
-            this.tweens.add({
-                targets: enemy,
-                alpha: { from: 1, to: 0 },
-                duration: 100,
-                repeat: -1,
-                yoyo: true
-            });
-        });
-        
-        // Show kill screen text
-        const killScreenText = this.add.text(
-            this.cameras.main.width / 2,
-            this.cameras.main.height / 2 - 50,
-            'LEVEL 256 - KILL SCREEN',
-            {
-                font: '40px Arial',
-                fill: '#ff0000',
-                stroke: '#ffffff',
-                strokeThickness: 4
-            }
-        ).setOrigin(0.5);
-        
-        const hintText = this.add.text(
-            this.cameras.main.width / 2,
-            this.cameras.main.height / 2 + 20,
-            'SECRET CODE TO CONTINUE...',
-            {
-                font: '24px Arial',
-                fill: '#ffffff'
-            }
-        ).setOrigin(0.5);
-        
-        // Create a timer for the kill screen bypass
-        this.killScreenTimer = this.time.delayedCall(10000, () => {
-            // If the player hasn't entered the code, game over
-            if (this.isKillScreen) {
-                this.gameOver();
-            }
-        }, [], this);
-    }
-    
+    /**
+     * Check if the player is entering the kill screen code (Konami code)
+     * @param {Phaser.Input.Keyboard.KeyboardEvent} event - The keyboard event
+     */
     checkKillScreenCode(event) {
-        if (!this.isKillScreen) return;
+        // Get the expected next key in the sequence
+        const expectedKey = GAME.killScreenCode[GAME.currentCodeIndex];
+        let keyPressed = '';
         
-        // Map the key to our code format
-        let keyPressed;
-        
-        switch (event.keyCode) {
+        // Convert the key event to our expected format
+        switch(event.keyCode) {
             case Phaser.Input.Keyboard.KeyCodes.UP:
-            case Phaser.Input.Keyboard.KeyCodes.W:
                 keyPressed = 'up';
                 break;
             case Phaser.Input.Keyboard.KeyCodes.DOWN:
-            case Phaser.Input.Keyboard.KeyCodes.S:
                 keyPressed = 'down';
                 break;
             case Phaser.Input.Keyboard.KeyCodes.LEFT:
-            case Phaser.Input.Keyboard.KeyCodes.A:
                 keyPressed = 'left';
                 break;
             case Phaser.Input.Keyboard.KeyCodes.RIGHT:
-            case Phaser.Input.Keyboard.KeyCodes.D:
                 keyPressed = 'right';
                 break;
             case Phaser.Input.Keyboard.KeyCodes.ENTER:
                 keyPressed = 'enter';
                 break;
-            default:
-                return;
         }
         
-        // Check if the key matches the next key in the sequence
-        if (keyPressed === GAME.killScreenCode[GAME.currentCodeIndex]) {
+        // Check if the pressed key matches the expected key
+        if (keyPressed === expectedKey) {
+            // Increment the index to check the next key in the sequence
             GAME.currentCodeIndex++;
             
-            // Flash the screen to indicate correct input
-            this.cameras.main.flash(50, 0, 255, 255, true);
-            
-            // If the entire code has been entered
-            if (GAME.currentCodeIndex === GAME.killScreenCode.length) {
-                this.killScreenBypass();
+            // If the entire sequence is entered correctly
+            if (GAME.currentCodeIndex >= GAME.killScreenCode.length) {
+                console.log("Kill screen code entered correctly!");
+                this.triggerKillScreen();
+                // Reset the index for future attempts
+                GAME.currentCodeIndex = 0;
             }
         } else {
-            // Reset the code index if wrong key is pressed
+            // Reset the index if the wrong key is pressed
             GAME.currentCodeIndex = 0;
-            
-            // Flash red to indicate wrong input
-            this.cameras.main.flash(50, 255, 0, 0, true);
         }
     }
     
-    killScreenBypass() {
-        // Cancel the kill screen timer
-        if (this.killScreenTimer) {
-            this.killScreenTimer.remove();
-        }
+    /**
+     * Trigger the kill screen (level 256 glitch)
+     */
+    triggerKillScreen() {
+        if (this.isKillScreen) return; // Prevent multiple triggers
         
-        // Reset the kill screen state
-        this.isKillScreen = false;
-        
-        // Stop any tweens on enemies
-        this.tweens.killAll();
-        
-        // Add bonus points
-        const bonusPoints = 10000;
-        this.score += bonusPoints;
-        this.uiManager.updateScore(this.score);
-        
-        // Update high score
-        if (this.score > GAME.highScore) {
-            GAME.highScore = this.score;
-        }
-        
-        // Show success message
-        const successText = this.add.text(
-            this.cameras.main.width / 2,
-            this.cameras.main.height / 2,
-            'You have transcended the arcade!\nThe game resets, but your legend continues...',
-            {
-                font: '28px Arial',
-                fill: '#ffff00',
-                stroke: '#000000',
-                strokeThickness: 4,
-                align: 'center'
-            }
-        ).setOrigin(0.5);
-        
-        // Fade out and reset game
-        this.time.delayedCall(5000, () => {
-            // Reset to level 1 with increased difficulty
-            GAME.level = 1;
-            
-            // Restart the game scene
-            this.scene.restart();
-        }, [], this);
-    }
-    
-    gameOver() {
-        console.log("gameOver() called");
-        this.isGameOver = true;
+        console.log("Triggering kill screen!");
+        this.isKillScreen = true;
         
         // Play game over sound
         this.playSound('game_over', 0.7);
         
-        // Store final score
-        GAME.score = this.score;
+        // Create a visual glitch effect
+        this.cameras.main.shake(2000, 0.01);
+        this.cameras.main.flash(1000, 255, 0, 0);
         
-        // Show immediate game over text
-        const gameOverText = this.add.text(
+        // Clear all enemies
+        this.enemyManager.enemies.clear(true, true);
+        
+        // Display "KILL SCREEN" text
+        const killScreenText = this.add.text(
             this.cameras.main.width / 2,
             this.cameras.main.height / 2,
-            'GAME OVER',
+            'KILL SCREEN',
             {
                 font: '64px Arial',
                 fill: '#ff0000',
@@ -935,132 +805,85 @@ class GameScene extends Phaser.Scene {
             }
         ).setOrigin(0.5);
         
-        // Transition to game over scene after a delay
-        this.time.delayedCall(2000, () => {
-            console.log("Transitioning to GameOverScene");
-            
-            // Stop music
-            if (this.bgMusic) {
-                try {
-                    this.bgMusic.stop();
-                } catch (err) {
-                    console.warn("Error stopping music:", err);
-                }
-            }
-            
-            // Reset level before going to game over screen
+        // Make the text flicker
+        this.killScreenTimer = this.time.addEvent({
+            delay: 200,
+            callback: () => {
+                killScreenText.visible = !killScreenText.visible;
+            },
+            loop: true
+        });
+        
+        // Return to menu after a delay
+        this.time.delayedCall(5000, () => {
+            // Reset game state
             GAME.level = 1;
-            this.scene.start('GameOverScene');
-        }, [], this);
-    }
-    
-    togglePause() {
-        this.isPaused = !this.isPaused;
-        
-        if (this.isPaused) {
-            // Pause the physics
-            this.physics.pause();
-            
-            // Show pause menu
-            this.pauseBackground.setVisible(true);
-            this.pauseText.setVisible(true);
-            this.resumeButton.setVisible(true);
-            this.quitButton.setVisible(true);
-        } else {
-            // Resume the physics
-            this.physics.resume();
-            
-            // Hide pause menu
-            this.pauseBackground.setVisible(false);
-            this.pauseText.setVisible(false);
-            this.resumeButton.setVisible(false);
-            this.quitButton.setVisible(false);
-        }
-    }
-    
-    // Utility method to safely play sounds
-    playSound(key, volume = 0.5) {
-        try {
-            if (!GAME.isMuted && this.cache.audio.exists(key)) {
-                this.sound.play(key, { volume: volume });
-            }
-        } catch (err) {
-            console.warn(`Could not play ${key} sound:`, err);
-        }
-    }
-    
-    // Method to safely initialize background music
-    safelyInitBackgroundMusic() {
-        try {
-            if (this.cache.audio.exists('bg_music')) {
-                this.bgMusic = this.sound.add('bg_music', {
-                    volume: 0.4,
-                    loop: true
-                });
-                
-                if (!GAME.isMuted) {
-                    // Don't use promise/catch as Phaser's sound.play() doesn't return a promise
-                    this.bgMusic.play();
-                }
-            } else {
-                console.warn("Background music not found in cache");
-            }
-        } catch (err) {
-            console.error("Error initializing background music:", err);
-        }
-    }
-    
-    // Add debug support
-    addDebugInfo() {
-        // Create debug text
-        this.debugText = this.add.text(
-            10, 
-            this.cameras.main.height - 60, 
-            'Debug: Press D to toggle', 
-            {
-                font: '14px Arial',
-                fill: '#ffff00'
-            }
-        ).setScrollFactor(0).setDepth(1000);
-        
-        this.debugMode = false;
-        this.debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-        
-        this.input.keyboard.on('keydown-D', () => {
-            this.debugMode = !this.debugMode;
-            this.debugText.setText(`Debug: ${this.debugMode ? 'ON' : 'OFF'}`);
-            
-            // Toggle debug visualization for collision areas
-            if (this.physics.world.debugGraphic) {
-                this.physics.world.debugGraphic.setVisible(this.debugMode);
-            } else if (this.debugMode) {
-                this.physics.world.createDebugGraphic();
-            }
+            this.scene.start('MenuScene');
         });
     }
     
-    // Update debug information
-    updateDebugInfo() {
-        let debugInfo = `Debug: ON\n`;
-        debugInfo += `FPS: ${Math.round(this.game.loop.actualFps)}\n`;
-        debugInfo += `Level: ${this.level}\n`;
-        debugInfo += `Player Health: ${this.playerHealth}\n`;
-        debugInfo += `Lives: ${this.playerLives}\n`;
-        debugInfo += `Enemies: ${this.enemyManager.enemies.countActive()}\n`;
-        debugInfo += `Player Bullets: ${this.playerBullets.countActive()}\n`;
-        debugInfo += `Enemy Bullets: ${this.enemyBullets.countActive()}\n`;
-        
-        this.debugText.setText(debugInfo);
+    /**
+     * Safely play a sound with error handling
+     * @param {string} key - The sound key
+     * @param {number} volume - The volume (0-1)
+     */
+    playSound(key, volume = 1.0) {
+        try {
+            // Don't play sounds if muted
+            if (GAME.isMuted) return;
+            
+            // Check if sound exists
+            if (this.sound.get(key)) {
+                this.sound.play(key, { volume: volume });
+            } else {
+                console.warn(`Sound '${key}' not found`);
+            }
+        } catch (error) {
+            console.error(`Error playing sound '${key}':`, error);
+        }
     }
     
-    // Resize method to handle different screen resolutions
+    /**
+     * Safely initialize background music with error handling
+     */
+    safelyInitBackgroundMusic() {
+        try {
+            // Check if music already exists
+            if (this.bgMusic) return;
+            
+            // Create background music if it exists in the cache
+            if (this.sound.get('bg_music')) {
+                this.bgMusic = this.sound.add('bg_music', {
+                    volume: 0.3,
+                    loop: true
+                });
+                
+                // Start playing if not muted
+                if (!GAME.isMuted) {
+                    this.bgMusic.play();
+                }
+            } else {
+                console.warn("Background music 'bg_music' not found");
+            }
+        } catch (error) {
+            console.error("Error initializing background music:", error);
+        }
+    }
+    
+    /**
+     * Handle window resize
+     * @param {Phaser.Scale.ScaleManager} gameSize - The new game size
+     */
     resize(gameSize) {
-        // Update the UI manager
-        if (this.uiManager) {
-            this.uiManager.resize(gameSize.width, gameSize.height);
+        // Update camera
+        this.cameras.resize(gameSize.width, gameSize.height);
+        
+        // Update background
+        if (this.background) {
+            this.background.setSize(gameSize.width, gameSize.height);
         }
         
-        // Update level text position
+        // Update UI elements
         if (this.levelText) {
             this.levelText.setPosition(gameSize.width - 20, 60);
         }
@@ -1083,70 +906,220 @@ class GameScene extends Phaser.Scene {
             this.quitButton.setPosition(gameSize.width / 2, gameSize.height / 2 + 70);
         }
         
-        // Update debug text position
-        if (this.debugText) {
-            this.debugText.setPosition(10, gameSize.height - 60);
+        if (this.levelControlsText) {
+            this.levelControlsText.setPosition(gameSize.width / 2, gameSize.height / 2 + 120);
         }
         
-        // Update mobile controls if present
-        if (GAME.isMobile) {
-            // Update D-pad position
-            if (this.dpad) {
-                this.dpad.setPosition(100, gameSize.height - 100);
-                
-                // Update hit zones
-                const dpadRadius = 50;
-                const dpadCenterX = 100;
-                const dpadCenterY = gameSize.height - 100;
-                
-                // We need to recreate the zones since they don't have a setPosition method
-                if (this.leftZone) this.leftZone.destroy();
-                if (this.rightZone) this.rightZone.destroy();
-                if (this.upZone) this.upZone.destroy();
-                if (this.downZone) this.downZone.destroy();
-                
-                // Recreate the zones at the new position
-                this.leftZone = this.add.zone(dpadCenterX - dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.left = true; })
-                    .on('pointerup', () => { this.mobileControls.left = false; })
-                    .on('pointerout', () => { this.mobileControls.left = false; });
-                
-                this.rightZone = this.add.zone(dpadCenterX + dpadRadius/2, dpadCenterY, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.right = true; })
-                    .on('pointerup', () => { this.mobileControls.right = false; })
-                    .on('pointerout', () => { this.mobileControls.right = false; });
-                
-                this.upZone = this.add.zone(dpadCenterX, dpadCenterY - dpadRadius/2, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.up = true; })
-                    .on('pointerup', () => { this.mobileControls.up = false; })
-                    .on('pointerout', () => { this.mobileControls.up = false; });
-                
-                this.downZone = this.add.zone(dpadCenterX, dpadCenterY + dpadRadius/2, dpadRadius, dpadRadius)
-                    .setOrigin(0.5)
-                    .setInteractive()
-                    .on('pointerdown', () => { this.mobileControls.down = true; })
-                    .on('pointerup', () => { this.mobileControls.down = false; })
-                    .on('pointerout', () => { this.mobileControls.down = false; });
-            }
-            
-            // Update fire button position
-            if (this.fireButton) {
-                this.fireButton.setPosition(gameSize.width - 80, gameSize.height - 100);
-            }
-            
-            // Update mute button position
-            if (this.muteButton) {
-                this.muteButton.setPosition(gameSize.width - 40, 40);
-                if (this.muteText) {
-                    this.muteText.setPosition(gameSize.width - 40, 40);
-                }
-            }
+        // Update mobile controls if they exist
+        if (GAME.isMobile && this.mobileControls) {
+            this.createMobileControls(); // Recreate with new dimensions
         }
+    }
+    
+    /**
+     * Add debug information display
+     */
+    addDebugInfo() {
+        // Check if debug mode is enabled
+        this.debugMode = GAME.debug || false;
+        
+        if (this.debugMode) {
+            console.log("Debug mode enabled");
+            
+            // Create debug text
+            this.debugText = this.add.text(10, 10, 'DEBUG INFO', {
+                font: '14px Courier',
+                fill: '#00ff00',
+                backgroundColor: '#000000'
+            });
+            
+            // Update debug info immediately
+            this.updateDebugInfo();
+        }
+    }
+    
+    /**
+     * Update debug information display
+     */
+    updateDebugInfo() {
+        if (!this.debugText) return;
+        
+        // Gather debug information
+        const debugInfo = [
+            `FPS: ${Math.round(this.game.loop.actualFps)}`,
+            `Level: ${this.level}`,
+            `Score: ${this.score}`,
+            `Player Health: ${this.playerHealth}`,
+            `Lives: ${this.playerLives}`,
+            `Active Enemies: ${this.enemyManager.enemies.countActive()}`,
+            `Player Bullets: ${this.playerBullets.countActive()}`,
+            `Enemy Bullets: ${this.enemyBullets.countActive()}`,
+            `PowerUps: ${this.powerupItems.countActive()}`,
+            `Shield: ${this.powerups.shield.active ? 'ON' : 'OFF'}`,
+            `Double Shot: ${this.powerups.doubleShot.active ? 'ON' : 'OFF'}`,
+            `Speed Boost: ${this.powerups.speed.active ? 'ON' : 'OFF'}`
+        ];
+        
+        // Update the debug text
+        this.debugText.setText(debugInfo);
+    }
+    
+    /**
+     * Increase the level by a specified amount
+     * @param {number} amount - The amount to increase the level by
+     */
+    increaseLevel(amount) {
+        // Prevent level increase during level transition
+        if (this.isLevelingUp) return;
+        
+        console.log(`Increasing level by ${amount}`);
+        
+        // Set the new level
+        this.level += amount;
+        GAME.level = this.level;
+        
+        console.log(`Level set to ${this.level}`);
+        
+        // Update level text
+        this.levelText.setText('LEVEL: ' + this.level);
+        
+        // Check for kill screen
+        if (this.level >= 256) {
+            this.triggerKillScreen();
+        } else {
+            // Restart the current level with the new level value
+            this.startLevel(this.level);
+        }
+    }
+    
+    /**
+     * Start a new level
+     * @param {number} level - The level to start
+     */
+    startLevel(level) {
+        console.log(`Starting level ${level}`);
+        
+        // Clear any existing enemies and bullets
+        this.enemyManager.enemies.clear(true, true);
+        this.playerBullets.clear(true, true);
+        this.enemyBullets.clear(true, true);
+        this.powerupItems.clear(true, true);
+        
+        // Update level text
+        this.levelText.setText('LEVEL: ' + level);
+        
+        // Start the enemy wave for this level
+        this.enemyManager.createWave(level);
+    }
+    
+    /**
+     * Toggle pause state
+     */
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        
+        // Pause/resume physics
+        if (this.isPaused) {
+            this.physics.pause();
+        } else {
+            this.physics.resume();
+        }
+        
+        // Show/hide pause menu
+        this.pauseBackground.setVisible(this.isPaused);
+        this.pauseText.setVisible(this.isPaused);
+        this.resumeButton.setVisible(this.isPaused);
+        this.quitButton.setVisible(this.isPaused);
+        this.levelControlsText.setVisible(this.isPaused);
+    }
+    
+    /**
+     * Game over handler
+     */
+    gameOver() {
+        if (this.isGameOver) return; // Prevent multiple game over calls
+        
+        console.log("Game over!");
+        this.isGameOver = true;
+        
+        // Play game over sound
+        this.playSound('game_over', 0.7);
+        
+        // Stop all movement
+        this.physics.pause();
+        
+        // Transition to game over scene after a delay
+        this.time.delayedCall(2000, () => {
+            this.scene.start('GameOverScene', { 
+                score: this.score,
+                level: this.level
+            });
+        });
+    }
+    
+    /**
+     * Spawn a random power-up at the specified position
+     * @param {number} x - The x position
+     * @param {number} y - The y position
+     */
+    spawnPowerup(x, y) {
+        // Define power-up types
+        const powerupTypes = ['shield', 'doubleShot', 'speed'];
+        
+        // Select a random power-up type
+        const type = powerupTypes[Phaser.Math.Between(0, powerupTypes.length - 1)];
+        
+        // Create the power-up
+        const powerup = new PowerUp(this, x, y, type);
+        this.powerupItems.add(powerup);
+    }
+    
+    /**
+     * Handle power-up collection
+     * @param {Player} player - The player
+     * @param {PowerUp} powerup - The power-up
+     */
+    collectPowerup(player, powerup) {
+        // Play power-up sound
+        this.playSound('powerup_pickup', 0.6);
+        
+        // Apply power-up effect
+        switch (powerup.type) {
+            case 'shield':
+                this.activatePowerup('shield', 10000); // 10 seconds
+                break;
+            case 'doubleShot':
+                this.activatePowerup('doubleShot', 15000); // 15 seconds
+                break;
+            case 'speed':
+                this.activatePowerup('speed', 12000); // 12 seconds
+                break;
+        }
+        
+        // Destroy the power-up
+        powerup.destroy();
+    }
+    
+    /**
+     * Activate a power-up for a specified duration
+     * @param {string} type - The power-up type
+     * @param {number} duration - The duration in milliseconds
+     */
+    activatePowerup(type, duration) {
+        console.log(`Activating ${type} power-up for ${duration}ms`);
+        
+        // Clear any existing timer
+        if (this.powerups[type].timer) {
+            this.powerups[type].timer.remove();
+        }
+        
+        // Activate the power-up
+        this.powerups[type].active = true;
+        
+        // Set a timer to deactivate the power-up
+        this.powerups[type].timer = this.time.delayedCall(duration, () => {
+            this.powerups[type].active = false;
+            console.log(`${type} power-up expired`);
+        });
     }
 }
