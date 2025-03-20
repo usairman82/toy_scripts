@@ -3,13 +3,34 @@
  * Handles input, game state, and mechanics
  */
 
+console.log("Game.js loaded - Script execution started");
+
 class DungeonGame {
     constructor() {
+        console.log("DungeonGame constructor called");
         // Initialize canvas
         this.canvas = document.getElementById('game-canvas');
         
-        // Initialize raycasting engine
-        this.engine = new RaycastingEngine(this.canvas);
+        // Initialize raycasting engine with error handling
+        try {
+            console.log("Creating RaycastingEngine instance");
+            this.engine = new RaycastingEngine(this.canvas);
+            console.log("RaycastingEngine instance created successfully");
+        } catch (error) {
+            console.error("Failed to create RaycastingEngine:", error);
+            this.showError("Failed to initialize game engine. Check the debug console for details.");
+            return;
+        }
+        
+        // Initialize audio manager
+        try {
+            console.log("Creating AudioManager instance");
+            this.audio = new AudioManager();
+            console.log("AudioManager instance created successfully");
+        } catch (error) {
+            console.error("Failed to create AudioManager:", error);
+            this.showError("Failed to initialize audio. Game will continue without sound.");
+        }
         
         // Game state
         this.state = {
@@ -21,8 +42,23 @@ class DungeonGame {
             enemies: [],
             gameOver: false,
             paused: false,
-            loading: true
+            loading: true,
+            exploredMap: null // Will store explored areas for minimap
         };
+        
+        // Set a loading timeout to prevent getting stuck on loading screen
+        this.loadingTimeout = setTimeout(() => {
+            if (this.state.loading) {
+                console.warn("Loading timeout reached, forcing game to start");
+                this.state.loading = false;
+                if (this.loadingScreen) {
+                    this.loadingScreen.style.display = 'none';
+                    console.log("Loading screen hidden by timeout");
+                } else {
+                    console.warn("Loading screen element not found when trying to hide it in timeout");
+                }
+            }
+        }, 10000); // 10 seconds timeout
         
         // Input state
         this.keys = {};
@@ -51,15 +87,30 @@ class DungeonGame {
      */
     async init() {
         try {
+            console.log("Game initialization started");
+            
+            // Create minimap canvas
+            this.createMinimapCanvas();
+            
             // Load assets
+            console.log("Loading assets...");
             await this.loadAssets();
+            console.log("Assets loaded successfully");
             
             // Load the first level
+            console.log("Loading level 1...");
             await this.loadLevel(1);
+            console.log("Level 1 loaded successfully");
             
             // Hide loading screen
+            console.log("Hiding loading screen");
             this.state.loading = false;
-            this.loadingScreen.style.display = 'none';
+            if (this.loadingScreen) {
+                this.loadingScreen.style.display = 'none';
+                console.log("Loading screen hidden successfully");
+            } else {
+                console.warn("Loading screen element not found when trying to hide it");
+            }
             
             // Start game loop
             this.lastTime = performance.now();
@@ -74,7 +125,246 @@ class DungeonGame {
             });
         } catch (error) {
             console.error('Failed to initialize game:', error);
-            this.showError('Failed to initialize game. Please refresh the page.');
+            this.showError('Failed to initialize game. Please refresh the page or click to continue.');
+            
+            // Add a click handler to the loading screen to allow the user to continue anyway
+            this.loadingScreen.addEventListener('click', () => {
+                // Clear loading screen
+                this.state.loading = false;
+                this.loadingScreen.style.display = 'none';
+                
+                // Start game loop with fallback level
+                const fallbackLevel = this.createFallbackLevel();
+                this.engine.setMap(fallbackLevel);
+                this.initializeExploredMap(fallbackLevel);
+                this.lastTime = performance.now();
+                requestAnimationFrame(this.gameLoop.bind(this));
+            });
+        }
+    }
+    
+    /**
+     * Create minimap canvas
+     */
+    createMinimapCanvas() {
+        // Create minimap canvas element
+        this.minimapCanvas = document.createElement('canvas');
+        this.minimapCanvas.id = 'minimap-canvas';
+        this.minimapCanvas.width = 200;
+        this.minimapCanvas.height = 200;
+        
+        // Style the minimap
+        this.minimapCanvas.style.position = 'absolute';
+        this.minimapCanvas.style.top = '20px';
+        this.minimapCanvas.style.right = '20px';
+        this.minimapCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        this.minimapCanvas.style.border = '2px solid #fff';
+        this.minimapCanvas.style.zIndex = '100';
+        
+        // Add to the game container
+        document.getElementById('game-container').appendChild(this.minimapCanvas);
+    }
+    
+    /**
+     * Game loop
+     * @param {number} timestamp - Current timestamp
+     */
+    gameLoop(timestamp) {
+        // Calculate delta time
+        const deltaTime = timestamp - this.lastTime;
+        this.lastTime = timestamp;
+        
+        // Skip if game is paused or loading
+        if (!this.state.paused && !this.state.loading && !this.state.gameOver) {
+            // Handle input
+            this.handleInput(deltaTime);
+            
+            // Update enemies
+            this.updateEnemies(deltaTime);
+            
+            // Update explored map for minimap
+            this.updateExploredMap();
+            
+            // Render the scene
+            this.engine.render();
+            
+            // Render minimap
+            this.renderMinimap();
+            
+            // Debug info
+            this.renderDebugInfo();
+            
+            // Auto-save every 30 seconds
+            if (Math.floor(timestamp / 30000) > Math.floor(this.lastTime / 30000)) {
+                this.saveGame();
+            }
+        }
+        
+        // Request next frame
+        requestAnimationFrame(this.gameLoop.bind(this));
+    }
+    
+    /**
+     * Update explored map based on player position
+     */
+    updateExploredMap() {
+        if (!this.state.exploredMap) return;
+        
+        // Get player's position in grid coordinates
+        const playerMapX = Math.floor(this.engine.player.x);
+        const playerMapY = Math.floor(this.engine.player.y);
+        
+        // Mark current position and surrounding cells as explored
+        const visibilityRadius = 3; // How far the player can "see" for the minimap
+        
+        for (let y = Math.max(0, playerMapY - visibilityRadius); y <= Math.min(this.state.exploredMap.length - 1, playerMapY + visibilityRadius); y++) {
+            for (let x = Math.max(0, playerMapX - visibilityRadius); x <= Math.min(this.state.exploredMap[0].length - 1, playerMapX + visibilityRadius); x++) {
+                // Calculate distance from player
+                const dx = x - playerMapX;
+                const dy = y - playerMapY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Mark as explored if within visibility radius
+                if (distance <= visibilityRadius) {
+                    this.state.exploredMap[y][x] = true;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Render the minimap
+     */
+    renderMinimap() {
+        if (!this.state.exploredMap || !this.minimapCanvas) return;
+        
+        const ctx = this.minimapCanvas.getContext('2d');
+        const cellSize = 8; // Size of each cell in the minimap
+        
+        // Clear the minimap
+        ctx.clearRect(0, 0, this.minimapCanvas.width, this.minimapCanvas.height);
+        
+        // Draw the explored map
+        for (let y = 0; y < this.state.exploredMap.length; y++) {
+            for (let x = 0; x < this.state.exploredMap[y].length; x++) {
+                // Skip unexplored areas
+                if (!this.state.exploredMap[y][x]) continue;
+                
+                // Get the cell type
+                const cell = this.engine.map.layout[y][x];
+                
+                // Set color based on cell type
+                if (cell === 'W') {
+                    ctx.fillStyle = '#555'; // Wall
+                } else if (cell === 'D') {
+                    ctx.fillStyle = '#8b4513'; // Door
+                } else {
+                    ctx.fillStyle = '#333'; // Floor
+                }
+                
+                // Draw the cell
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
+        }
+        
+        // Draw player position
+        const playerX = Math.floor(this.engine.player.x * cellSize);
+        const playerY = Math.floor(this.engine.player.y * cellSize);
+        
+        // Draw player direction indicator
+        ctx.fillStyle = '#f00';
+        ctx.beginPath();
+        ctx.arc(playerX, playerY, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw player direction
+        const dirX = Math.cos(this.engine.player.angle) * 5;
+        const dirY = Math.sin(this.engine.player.angle) * 5;
+        
+        ctx.strokeStyle = '#f00';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(playerX, playerY);
+        ctx.lineTo(playerX + dirX, playerY + dirY);
+        ctx.stroke();
+        
+        // Draw enemies on minimap if they're in explored areas
+        ctx.fillStyle = '#ff0';
+        for (const enemy of this.state.enemies) {
+            const enemyMapX = Math.floor(enemy.x);
+            const enemyMapY = Math.floor(enemy.y);
+            
+            // Only show enemies in explored areas
+            if (enemyMapX >= 0 && enemyMapX < this.state.exploredMap[0].length &&
+                enemyMapY >= 0 && enemyMapY < this.state.exploredMap.length &&
+                this.state.exploredMap[enemyMapY][enemyMapX]) {
+                
+                const enemyX = enemy.x * cellSize;
+                const enemyY = enemy.y * cellSize;
+                
+                ctx.beginPath();
+                ctx.arc(enemyX, enemyY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+    
+    /**
+     * Render debug information
+     */
+    renderDebugInfo() {
+        // Display debug info in the top-left corner
+        const ctx = this.engine.ctx;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(10, 10, 300, 100);
+        
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#fff';
+        
+        // Player position and angle
+        ctx.fillText(`Position: (${this.engine.player.x.toFixed(2)}, ${this.engine.player.y.toFixed(2)})`, 20, 30);
+        ctx.fillText(`Angle: ${(this.engine.player.angle * 180 / Math.PI).toFixed(2)}°`, 20, 50);
+        
+        // Health
+        ctx.fillText(`Health: ${this.state.health}/${this.state.maxHealth}`, 20, 70);
+        
+        // Weapon
+        ctx.fillText(`Weapon: ${this.state.currentWeapon}`, 20, 90);
+        
+        // Enemies
+        ctx.fillText(`Enemies: ${this.state.enemies.length}`, 200, 30);
+        
+        // Attack info
+        const weapon = this.getWeaponData(this.state.currentWeapon);
+        if (weapon) {
+            ctx.fillText(`Attack: Space`, 200, 50);
+            ctx.fillText(`Damage: ${weapon.damage}`, 200, 70);
+            ctx.fillText(`Range: ${weapon.range}`, 200, 90);
+        }
+    }
+    
+    /**
+     * Load game configuration from config.json
+     * @returns {object} - Game configuration
+     */
+    async loadConfig() {
+        try {
+            const response = await fetch('config.json');
+            const config = await response.json();
+            console.log("Loaded game configuration:", config);
+            return config;
+        } catch (error) {
+            console.error("Failed to load config.json:", error);
+            // Return default configuration
+            return {
+                depthTextures: {
+                    enabled: true,
+                    density: 0.3,
+                    minDistance: 1.5,
+                    maxDistance: 15.0,
+                    randomSeed: 12345
+                }
+            };
         }
     }
     
@@ -82,35 +372,175 @@ class DungeonGame {
      * Load game assets
      */
     async loadAssets() {
-        const totalAssets = 10; // Update this number based on actual assets
+        console.log("Starting to load assets...");
+        // Count depth textures
+        const depthTextureCount = 4; // lit_torch.png, moss_patch.png, skull.png, small_alcove_with_candle.png
+        const totalAssets = 27 + depthTextureCount;
         let loadedAssets = 0;
+        
+        // Add a loading message to the loading screen
+        const loadingText = this.loadingScreen.querySelector('.loading-text');
+        if (loadingText) {
+            loadingText.innerHTML = 'Loading Dungeon Adventure...<br><small>Loading assets (0/' + totalAssets + ')</small>';
+        }
         
         const updateProgress = () => {
             loadedAssets++;
             const progress = (loadedAssets / totalAssets) * 100;
             this.progressBar.style.width = `${progress}%`;
+            console.log(`Loaded asset ${loadedAssets}/${totalAssets} (${progress.toFixed(1)}%)`);
+            
+            // Update loading message
+            if (loadingText) {
+                loadingText.innerHTML = 'Loading Dungeon Adventure...<br><small>Loading assets (' + loadedAssets + '/' + totalAssets + ')</small>';
+            }
+        };
+        
+        // Load configuration
+        const config = await this.loadConfig();
+        window.gameConfig = config;
+        
+        // Helper function to load an asset with error handling
+        const loadAssetWithFallback = async (loadFunction, name, path) => {
+            try {
+                await loadFunction(name, path);
+            } catch (error) {
+                console.warn(`Failed to load asset: ${path}`, error);
+                // Create a simple colored rectangle as fallback
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                
+                // Use different colors for different asset types
+                if (path.includes('wall')) {
+                    ctx.fillStyle = '#555';
+                } else if (path.includes('door')) {
+                    ctx.fillStyle = '#8b4513';
+                } else if (path.includes('enemy') || path.includes('skeleton') || path.includes('goblin') || path.includes('wizard') || path.includes('boss')) {
+                    ctx.fillStyle = '#f00';
+                } else if (path.includes('potion')) {
+                    ctx.fillStyle = '#0f0';
+                } else if (path.includes('key')) {
+                    ctx.fillStyle = '#ff0';
+                } else if (path.includes('chest')) {
+                    ctx.fillStyle = '#a52a2a';
+                } else {
+                    ctx.fillStyle = '#888';
+                }
+                
+                ctx.fillRect(0, 0, 64, 64);
+                
+                // Add a warning text
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Missing', 32, 30);
+                ctx.fillText('Asset', 32, 42);
+                
+                const img = new Image();
+                img.src = canvas.toDataURL();
+                
+                if (path.includes('textures')) {
+                    this.engine.textures[name] = img;
+                } else if (path.includes('sprites')) {
+                    this.engine.sprites[name] = img;
+                }
+            }
+            
+            // Update progress regardless of success or failure
+            updateProgress();
         };
         
         // Load textures
         const texturePromises = [
-            this.engine.loadTexture('stone_wall', 'assets/textures/stone_wall.png').then(updateProgress),
-            this.engine.loadTexture('brick_wall', 'assets/textures/brick_wall.png').then(updateProgress),
-            this.engine.loadTexture('wood_wall', 'assets/textures/wood_wall.png').then(updateProgress),
-            this.engine.loadTexture('door_closed', 'assets/textures/door_closed.png').then(updateProgress),
-            this.engine.loadTexture('door_open', 'assets/textures/door_open.png').then(updateProgress)
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'stone_wall', 'assets/textures/stone_wall.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'brick_wall', 'assets/textures/brick_wall.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'wood_wall', 'assets/textures/wood_wall.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'secret_wall', 'assets/textures/secret_wall.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'floor_stone', 'assets/textures/floor_stone.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'ceiling_stone', 'assets/textures/ceiling_stone.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'door_closed', 'assets/textures/door_closed.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'door_open', 'assets/textures/door_open.png')
+        ];
+        
+        // Load depth textures
+        const depthTexturePromises = [
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'lit_torch', 'assets/textures/depth/lit_torch.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'moss_patch', 'assets/textures/depth/moss_patch.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'skull', 'assets/textures/depth/skull.png'),
+            loadAssetWithFallback(this.engine.loadTexture.bind(this.engine), 'small_alcove_with_candle', 'assets/textures/depth/small_alcove_with_candle.png')
         ];
         
         // Load sprites
         const spritePromises = [
-            this.engine.loadSprite('player_hand', 'assets/sprites/player_hand.png').then(updateProgress),
-            this.engine.loadSprite('skeleton_idle', 'assets/sprites/skeleton_idle.png').then(updateProgress),
-            this.engine.loadSprite('health_potion', 'assets/sprites/health_potion.png').then(updateProgress),
-            this.engine.loadSprite('key_gold', 'assets/sprites/key_gold.png').then(updateProgress),
-            this.engine.loadSprite('chest_closed', 'assets/sprites/chest_closed.png').then(updateProgress)
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'player_hand', 'assets/sprites/player/player_hand.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'crossbow', 'assets/sprites/player/crossbow.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'skeleton_idle', 'assets/sprites/enemies/skeleton_idle.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'goblin_idle', 'assets/sprites/enemies/goblin_idle.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'goblin_attack', 'assets/sprites/enemies/goblin_attack.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'dark_wizard_idle', 'assets/sprites/enemies/dark_wizard_idle.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'dark_wizard_cast', 'assets/sprites/enemies/dark_wizard_cast.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'boss_idle', 'assets/sprites/enemies/boss_idle.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'boss_attack', 'assets/sprites/enemies/boss_attack.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'health_potion', 'assets/sprites/items/health_potion.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'key_gold', 'assets/sprites/items/key_gold.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'key_silver', 'assets/sprites/items/key_silver.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'chest_closed', 'assets/sprites/items/chest_closed.png'),
+            loadAssetWithFallback(this.engine.loadSprite.bind(this.engine), 'chest_open', 'assets/sprites/items/chest_open.png')
         ];
         
-        // Wait for all assets to load
-        await Promise.all([...texturePromises, ...spritePromises]);
+        // Load audio assets if audio manager is available
+        let audioPromises = [];
+        if (this.audio) {
+            // Helper function to load audio with error handling
+            const loadAudioWithFallback = async (loadFunction, name, path) => {
+                try {
+                    await loadFunction(name, path);
+                } catch (error) {
+                    console.warn(`Failed to load audio: ${path}`, error);
+                }
+                
+                // Update progress regardless of success or failure
+                updateProgress();
+            };
+            
+            // Load sound effects
+            audioPromises = [
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'sword_swing', 'assets/audio/sfx/sword_swing.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'door_open', 'assets/audio/sfx/door-creaking.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'chest_open', 'assets/audio/sfx/chest_open.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'enemy_hit', 'assets/audio/sfx/enemy_hit.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'enemy_death', 'assets/audio/sfx/enemy_death.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'enemy_growl', 'assets/audio/sfx/enemy_growl.mp3'),
+                
+                // Load atmospheric sound effects
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'door-creaking', 'assets/audio/sfx/door-creaking.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'dripping', 'assets/audio/sfx/dripping.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'droplets-in-cave-1', 'assets/audio/sfx/droplets-in-cave-1.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'monster-growl', 'assets/audio/sfx/monster-growl.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'rattling-keys', 'assets/audio/sfx/rattling-keys.mp3'),
+                loadAudioWithFallback(this.audio.loadSound.bind(this.audio), 'steps', 'assets/audio/sfx/steps.mp3'),
+                
+                // Load background music
+                loadAudioWithFallback(this.audio.loadMusic.bind(this.audio), 'background_ambiance', 'assets/audio/music/background_ambiance.mp3')
+            ];
+        }
+        
+        // Wait for all assets to load or fail
+        await Promise.all([...texturePromises, ...depthTexturePromises, ...spritePromises, ...audioPromises]);
+        
+        console.log('All assets loaded or fallbacks created');
+        
+        // Start playing background music if available
+        if (this.audio && this.audio.music['background_ambiance']) {
+            console.log('Starting background ambiance music');
+            this.audio.playMusic('background_ambiance', true, 3000);
+            
+            // Start the atmospheric sounds timer
+            console.log('Starting atmospheric sounds timer');
+            this.audio.startAtmosphericSoundsTimer();
+        }
     }
     
     /**
@@ -132,6 +562,9 @@ class DungeonGame {
             // Update game state
             this.state.level = levelNumber;
             
+            // Initialize explored map for minimap
+            this.initializeExploredMap(levelData);
+            
             return levelData;
         } catch (error) {
             console.error(`Failed to load level ${levelNumber}:`, error);
@@ -139,8 +572,20 @@ class DungeonGame {
             // Fallback to a basic level if the level file is missing
             const fallbackLevel = this.createFallbackLevel();
             this.engine.setMap(fallbackLevel);
+            this.initializeExploredMap(fallbackLevel);
             return fallbackLevel;
         }
+    }
+    
+    /**
+     * Initialize explored map for minimap
+     * @param {object} levelData - Level data
+     */
+    initializeExploredMap(levelData) {
+        // Create a 2D array to track explored areas
+        this.state.exploredMap = Array(levelData.height).fill().map(() => 
+            Array(levelData.width).fill(false)
+        );
     }
     
     /**
@@ -194,7 +639,8 @@ class DungeonGame {
                             damage: this.getEnemyDamage(objectData.enemyType),
                             speed: this.getEnemySpeed(objectData.enemyType),
                             state: 'idle',
-                            lastAttack: 0
+                            lastAttack: 0,
+                            lastGrowl: 0 // Initialize lastGrowl for enemy growling
                         };
                         
                         this.state.enemies.push(enemy);
@@ -226,11 +672,11 @@ class DungeonGame {
      */
     getEnemyDamage(type) {
         switch (type) {
-            case 'skeleton': return 10;
-            case 'goblin': return 5;
-            case 'wizard': return 15;
-            case 'boss': return 25;
-            default: return 10;
+            case 'skeleton': return 5; // Reduced from 10 to 5
+            case 'goblin': return 3; // Reduced from 5 to 3
+            case 'wizard': return 8; // Reduced from 15 to 8
+            case 'boss': return 12; // Reduced from 25 to 12
+            default: return 5; // Reduced from 10 to 5
         }
     }
     
@@ -246,6 +692,78 @@ class DungeonGame {
             case 'wizard': return 0.01;
             case 'boss': return 0.015;
             default: return 0.02;
+        }
+    }
+    
+    /**
+     * Update enemies
+     * @param {number} deltaTime - Time since last frame in milliseconds
+     */
+    updateEnemies(deltaTime) {
+        // Skip if no enemies
+        if (this.state.enemies.length === 0) return;
+        
+        const now = performance.now();
+        
+        // Update each enemy
+        for (let i = 0; i < this.state.enemies.length; i++) {
+            const enemy = this.state.enemies[i];
+            
+            // Calculate distance to player
+            const dx = this.engine.player.x - enemy.x;
+            const dy = this.engine.player.y - enemy.y;
+            const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+            
+            // Debug enemy distance
+            console.log(`Enemy ${i} (${enemy.type}) distance: ${distanceToPlayer.toFixed(2)}`);
+            
+            // Enemy behavior based on distance
+            if (distanceToPlayer < 1.5) {
+                // Enemy is close enough to attack
+                if (now - enemy.lastAttack > 1000) { // Attack once per second
+                    // Attack player
+                    this.state.health -= enemy.damage;
+                    console.log(`${enemy.type} attacks! Player health: ${this.state.health}/${this.state.maxHealth}`);
+                    
+                    // Update health bar
+                    this.updateHealthBar();
+                    
+                    // Update last attack time
+                    enemy.lastAttack = now;
+                    
+                    // Check if player is dead
+                    if (this.state.health <= 0) {
+                        this.gameOver();
+                    }
+                }
+                
+                // Play growl sound randomly when very close
+                if (now - enemy.lastGrowl > 3000) { // At least 3 seconds between growls
+                    // Random chance to growl (20% chance per second)
+                    if (Math.random() < 0.2 * (deltaTime / 1000)) {
+                        this.playSound('enemy_growl');
+                        enemy.lastGrowl = now;
+                    }
+                }
+            } else if (distanceToPlayer < 5) {
+                // Enemy is close enough to chase player
+                // Calculate direction to player
+                const angle = Math.atan2(dy, dx);
+                
+                // Move towards player
+                const moveSpeed = enemy.speed * deltaTime;
+                const newX = enemy.x + Math.cos(angle) * moveSpeed;
+                const newY = enemy.y + Math.sin(angle) * moveSpeed;
+                
+                // Check if new position is valid (not inside a wall)
+                if (!this.engine.isWall(newX, enemy.y)) {
+                    enemy.x = newX;
+                }
+                
+                if (!this.engine.isWall(enemy.x, newY)) {
+                    enemy.y = newY;
+                }
+            }
         }
     }
     
@@ -277,7 +795,7 @@ class DungeonGame {
             this.keys[e.key.toLowerCase()] = false;
         });
         
-        // Mouse events
+        // Mouse events for rotation
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === this.canvas) {
                 this.mouse.locked = true;
@@ -447,7 +965,12 @@ class DungeonGame {
         // Get weapon data
         const weapon = this.getWeaponData(this.state.currentWeapon);
         
-        if (!weapon) return;
+        if (!weapon) {
+            console.log("No weapon equipped! Cannot attack.");
+            return;
+        }
+        
+        console.log(`Attacking with ${this.state.currentWeapon}! Range: ${weapon.range}, Damage: ${weapon.damage}`);
         
         // Play attack sound
         this.playSound(weapon.sound);
@@ -477,6 +1000,7 @@ class DungeonGame {
                 if (Math.abs(angleDiff) <= Math.PI / 4) {
                     // Hit the enemy
                     enemy.health -= weapon.damage;
+                    console.log(`Hit ${enemy.type} enemy! Dealt ${weapon.damage} damage. Enemy health: ${enemy.health}`);
                     
                     // Play hit sound
                     this.playSound('enemy_hit');
@@ -486,6 +1010,8 @@ class DungeonGame {
                         // Remove enemy
                         this.state.enemies.splice(i, 1);
                         i--;
+                        
+                        console.log(`${enemy.type} enemy defeated!`);
                         
                         // Play death sound
                         this.playSound('enemy_death');
@@ -516,8 +1042,16 @@ class DungeonGame {
      * @param {string} soundName - Sound name
      */
     playSound(soundName) {
-        // In a real implementation, this would play the sound
         console.log(`Playing sound: ${soundName}`);
+        
+        // Use audio manager if available
+        if (this.audio) {
+            try {
+                this.audio.playSound(soundName);
+            } catch (error) {
+                console.warn(`Failed to play sound ${soundName}:`, error);
+            }
+        }
     }
     
     /**
@@ -594,128 +1128,106 @@ class DungeonGame {
     }
     
     /**
-     * Show an error message
-     * @param {string} message - Error message
-     */
-    showError(message) {
-        const errorElement = document.createElement('div');
-        errorElement.className = 'error-message';
-        errorElement.textContent = message;
-        document.body.appendChild(errorElement);
-    }
-    
-    /**
      * Handle player input
      * @param {number} deltaTime - Time since last frame in milliseconds
      */
     handleInput(deltaTime) {
-        if (this.state.paused) return;
+        // Movement speed based on delta time
+        const moveSpeed = this.engine.player.speed * deltaTime;
         
-        // Movement
-        if (this.keys['w']) {
-            this.engine.movePlayer(1);
+        // Forward/backward movement
+        if (this.keys['w'] || this.keys['arrowup']) {
+            this.engine.movePlayer(moveSpeed);
+        }
+        if (this.keys['s'] || this.keys['arrowdown']) {
+            this.engine.movePlayer(-moveSpeed);
         }
         
-        if (this.keys['s']) {
-            this.engine.movePlayer(-1);
+        // Strafe left/right
+        if (this.keys['a'] || this.keys['arrowleft']) {
+            this.engine.strafePlayer(-moveSpeed);
+        }
+        if (this.keys['d'] || this.keys['arrowright']) {
+            this.engine.strafePlayer(moveSpeed);
         }
         
-        if (this.keys['a']) {
-            this.engine.strafePlayer(-1);
-        }
-        
-        if (this.keys['d']) {
-            this.engine.strafePlayer(1);
-        }
-        
-        // Rotation with arrow keys (alternative to mouse)
-        if (this.keys['arrowleft']) {
-            this.engine.rotatePlayer(-1);
-        }
-        
-        if (this.keys['arrowright']) {
-            this.engine.rotatePlayer(1);
-        }
-    }
-    
-    /**
-     * Update enemy positions and states
-     * @param {number} deltaTime - Time since last frame in milliseconds
-     */
-    updateEnemies(deltaTime) {
-        for (const enemy of this.state.enemies) {
-            // Calculate distance to player
-            const dx = this.engine.player.x - enemy.x;
-            const dy = this.engine.player.y - enemy.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // Update enemy state based on distance
-            if (distance < 5) {
-                // Enemy is close to player
-                if (distance < 1.5 && performance.now() - enemy.lastAttack > 1000) {
-                    // Attack player
-                    enemy.state = 'attack';
-                    enemy.lastAttack = performance.now();
-                    
-                    // Damage player
-                    this.state.health -= enemy.damage;
-                    this.updateHealthBar();
-                    
-                    // Check if player is dead
-                    if (this.state.health <= 0) {
-                        this.gameOver();
-                    }
-                } else {
-                    // Move towards player
-                    enemy.state = 'chase';
-                    
-                    // Calculate movement direction
-                    const angle = Math.atan2(dy, dx);
-                    const newX = enemy.x + Math.cos(angle) * enemy.speed * deltaTime;
-                    const newY = enemy.y + Math.sin(angle) * enemy.speed * deltaTime;
-                    
-                    // Check for collisions
-                    if (!this.engine.isWall(newX, enemy.y)) {
-                        enemy.x = newX;
-                    }
-                    
-                    if (!this.engine.isWall(enemy.x, newY)) {
-                        enemy.y = newY;
-                    }
-                }
-            } else {
-                // Enemy is far from player
-                enemy.state = 'idle';
+        // Rotation (if not using mouse)
+        if (!this.mouse.locked) {
+            if (this.keys['q']) {
+                this.engine.rotatePlayer(-0.05);
+            }
+            if (this.keys['e']) {
+                this.engine.rotatePlayer(0.05);
             }
         }
     }
     
     /**
-     * Game over
+     * Display an error message to the user
+     * @param {string} message - Error message to display
+     */
+    showError(message) {
+        console.error(message);
+        
+        // Create error element if it doesn't exist
+        let errorElement = document.getElementById('error-message');
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.id = 'error-message';
+            errorElement.style.position = 'absolute';
+            errorElement.style.top = '50%';
+            errorElement.style.left = '50%';
+            errorElement.style.transform = 'translate(-50%, -50%)';
+            errorElement.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            errorElement.style.color = '#f00';
+            errorElement.style.padding = '20px';
+            errorElement.style.borderRadius = '5px';
+            errorElement.style.zIndex = '1000';
+            errorElement.style.maxWidth = '80%';
+            errorElement.style.textAlign = 'center';
+            document.body.appendChild(errorElement);
+        }
+        
+        // Set error message
+        errorElement.innerHTML = `
+            <h2>Error</h2>
+            <p>${message}</p>
+            <p>Click anywhere to continue anyway.</p>
+        `;
+        
+        // Add click handler to dismiss error
+        const clickHandler = () => {
+            errorElement.style.display = 'none';
+            document.removeEventListener('click', clickHandler);
+        };
+        document.addEventListener('click', clickHandler);
+    }
+    
+    /**
+     * Game over handler
      */
     gameOver() {
         this.state.gameOver = true;
-        this.state.paused = true;
         
-        // Show game over screen
+        // Show game over message
         const gameOverElement = document.createElement('div');
         gameOverElement.className = 'game-over';
         gameOverElement.innerHTML = `
-            <h1>Game Over</h1>
-            <p>You died in the dungeon.</p>
-            <button id="restart-button">Restart</button>
+            <h2>Game Over</h2>
+            <p>You have been defeated!</p>
+            <button id="restart-button">Restart Game</button>
         `;
+        
         document.body.appendChild(gameOverElement);
         
         // Add restart button handler
         document.getElementById('restart-button').addEventListener('click', () => {
-            // Remove game over screen
+            // Remove game over message
             document.body.removeChild(gameOverElement);
             
             // Reset game state
             this.state.health = this.state.maxHealth;
             this.state.gameOver = false;
-            this.state.paused = false;
             
             // Reload the current level
             this.loadLevel(this.state.level);
@@ -724,36 +1236,4 @@ class DungeonGame {
             this.updateHealthBar();
         });
     }
-    
-    /**
-     * Main game loop
-     * @param {number} timestamp - Current timestamp
-     */
-    gameLoop(timestamp) {
-        // Calculate delta time
-        const deltaTime = timestamp - this.lastTime;
-        this.lastTime = timestamp;
-        
-        // Handle input
-        this.handleInput(deltaTime);
-        
-        // Update enemies
-        this.updateEnemies(deltaTime);
-        
-        // Render the scene
-        this.engine.render();
-        
-        // Save game periodically (every 10 seconds)
-        if (Math.floor(timestamp / 10000) > Math.floor(this.lastTime / 10000)) {
-            this.saveGame();
-        }
-        
-        // Continue the game loop
-        requestAnimationFrame(this.gameLoop.bind(this));
-    }
 }
-
-// Start the game when the page is loaded
-window.addEventListener('load', () => {
-    window.game = new DungeonGame();
-});

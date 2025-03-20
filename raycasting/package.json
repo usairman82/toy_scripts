@@ -7,6 +7,7 @@
     "start": "npx http-server -o",
     "deploy": "node deploy-to-s3.js",
     "setup": "setup_directories.bat",
+    "generate-assets": "generate_assets.bat",
     "generate-textures": "start generate_textures.html",
     "generate-screenshot": "start generate_screenshot.html"
   },

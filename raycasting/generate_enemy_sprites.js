@@ -1,0 +1,351 @@
+// Script to generate enemy sprites for the dungeon game
+
+// Function to create a canvas and return its context
+function createCanvas(width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas.getContext('2d');
+}
+
+// Function to save a canvas as a PNG file
+function saveCanvas(ctx, filename) {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = ctx.canvas.toDataURL('image/png');
+    link.click();
+}
+
+// Generate skeleton sprite
+function generateSkeletonIdle() {
+    const ctx = createCanvas(64, 64);
+    
+    // Transparent background
+    ctx.clearRect(0, 0, 64, 64);
+    
+    // Skeleton body
+    ctx.fillStyle = '#f8f8ff';
+    
+    // Head
+    ctx.beginPath();
+    ctx.arc(32, 16, 12, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Body
+    ctx.fillRect(24, 28, 16, 24);
+    
+    // Arms
+    ctx.fillRect(16, 28, 8, 16);
+    ctx.fillRect(40, 28, 8, 16);
+    
+    // Legs
+    ctx.fillRect(24, 52, 8, 12);
+    ctx.fillRect(32, 52, 8, 12);
+    
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(28, 14, 2, 0, Math.PI * 2);
+    ctx.arc(36, 14, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    saveCanvas(ctx, 'skeleton_idle.png');
+    console.log('Generated skeleton_idle.png');
+}
+
+// Generate goblin sprite
+function generateGoblinSprites() {
+    // Goblin idle
+    const ctxIdle = createCanvas(64, 64);
+    
+    // Transparent background
+    ctxIdle.clearRect(0, 0, 64, 64);
+    
+    // Goblin body (green)
+    ctxIdle.fillStyle = '#0a5';
+    
+    // Head
+    ctxIdle.beginPath();
+    ctxIdle.arc(32, 16, 10, 0, Math.PI * 2);
+    ctxIdle.fill();
+    
+    // Body
+    ctxIdle.fillRect(26, 26, 12, 20);
+    
+    // Arms
+    ctxIdle.fillRect(18, 26, 8, 12);
+    ctxIdle.fillRect(38, 26, 8, 12);
+    
+    // Legs
+    ctxIdle.fillRect(26, 46, 6, 10);
+    ctxIdle.fillRect(32, 46, 6, 10);
+    
+    // Eyes
+    ctxIdle.fillStyle = '#f00';
+    ctxIdle.beginPath();
+    ctxIdle.arc(28, 14, 2, 0, Math.PI * 2);
+    ctxIdle.arc(36, 14, 2, 0, Math.PI * 2);
+    ctxIdle.fill();
+    
+    saveCanvas(ctxIdle, 'goblin_idle.png');
+    console.log('Generated goblin_idle.png');
+    
+    // Goblin attack
+    const ctxAttack = createCanvas(64, 64);
+    
+    // Transparent background
+    ctxAttack.clearRect(0, 0, 64, 64);
+    
+    // Goblin body (green)
+    ctxAttack.fillStyle = '#0a5';
+    
+    // Head
+    ctxAttack.beginPath();
+    ctxAttack.arc(32, 16, 10, 0, Math.PI * 2);
+    ctxAttack.fill();
+    
+    // Body
+    ctxAttack.fillRect(26, 26, 12, 20);
+    
+    // Arms (attacking position)
+    ctxAttack.fillRect(14, 20, 12, 6);
+    ctxAttack.fillRect(38, 20, 12, 6);
+    
+    // Legs
+    ctxAttack.fillRect(26, 46, 6, 10);
+    ctxAttack.fillRect(32, 46, 6, 10);
+    
+    // Eyes (angry)
+    ctxAttack.fillStyle = '#f00';
+    ctxAttack.beginPath();
+    ctxAttack.arc(28, 14, 3, 0, Math.PI * 2);
+    ctxAttack.arc(36, 14, 3, 0, Math.PI * 2);
+    ctxAttack.fill();
+    
+    saveCanvas(ctxAttack, 'goblin_attack.png');
+    console.log('Generated goblin_attack.png');
+}
+
+// Generate wizard sprite
+function generateWizardSprites() {
+    // Wizard idle
+    const ctxIdle = createCanvas(64, 64);
+    
+    // Transparent background
+    ctxIdle.clearRect(0, 0, 64, 64);
+    
+    // Wizard body (purple)
+    ctxIdle.fillStyle = '#609';
+    
+    // Robe
+    ctxIdle.beginPath();
+    ctxIdle.moveTo(22, 20);
+    ctxIdle.lineTo(42, 20);
+    ctxIdle.lineTo(46, 56);
+    ctxIdle.lineTo(18, 56);
+    ctxIdle.closePath();
+    ctxIdle.fill();
+    
+    // Head
+    ctxIdle.fillStyle = '#ffdab9';
+    ctxIdle.beginPath();
+    ctxIdle.arc(32, 16, 8, 0, Math.PI * 2);
+    ctxIdle.fill();
+    
+    // Hat
+    ctxIdle.fillStyle = '#609';
+    ctxIdle.beginPath();
+    ctxIdle.moveTo(20, 16);
+    ctxIdle.lineTo(32, 0);
+    ctxIdle.lineTo(44, 16);
+    ctxIdle.closePath();
+    ctxIdle.fill();
+    
+    // Eyes
+    ctxIdle.fillStyle = '#000';
+    ctxIdle.beginPath();
+    ctxIdle.arc(29, 16, 1, 0, Math.PI * 2);
+    ctxIdle.arc(35, 16, 1, 0, Math.PI * 2);
+    ctxIdle.fill();
+    
+    saveCanvas(ctxIdle, 'dark_wizard_idle.png');
+    console.log('Generated dark_wizard_idle.png');
+    
+    // Wizard casting
+    const ctxCast = createCanvas(64, 64);
+    
+    // Transparent background
+    ctxCast.clearRect(0, 0, 64, 64);
+    
+    // Wizard body (purple)
+    ctxCast.fillStyle = '#609';
+    
+    // Robe
+    ctxCast.beginPath();
+    ctxCast.moveTo(22, 20);
+    ctxCast.lineTo(42, 20);
+    ctxCast.lineTo(46, 56);
+    ctxCast.lineTo(18, 56);
+    ctxCast.closePath();
+    ctxCast.fill();
+    
+    // Head
+    ctxCast.fillStyle = '#ffdab9';
+    ctxCast.beginPath();
+    ctxCast.arc(32, 16, 8, 0, Math.PI * 2);
+    ctxCast.fill();
+    
+    // Hat
+    ctxCast.fillStyle = '#609';
+    ctxCast.beginPath();
+    ctxCast.moveTo(20, 16);
+    ctxCast.lineTo(32, 0);
+    ctxCast.lineTo(44, 16);
+    ctxCast.closePath();
+    ctxCast.fill();
+    
+    // Eyes (glowing)
+    ctxCast.fillStyle = '#0ff';
+    ctxCast.beginPath();
+    ctxCast.arc(29, 16, 2, 0, Math.PI * 2);
+    ctxCast.arc(35, 16, 2, 0, Math.PI * 2);
+    ctxCast.fill();
+    
+    // Casting hands
+    ctxCast.fillStyle = '#ffdab9';
+    ctxCast.beginPath();
+    ctxCast.arc(48, 30, 4, 0, Math.PI * 2);
+    ctxCast.fill();
+    
+    // Magic effect
+    ctxCast.fillStyle = 'rgba(0, 255, 255, 0.5)';
+    ctxCast.beginPath();
+    ctxCast.arc(52, 30, 8, 0, Math.PI * 2);
+    ctxCast.fill();
+    
+    saveCanvas(ctxCast, 'dark_wizard_cast.png');
+    console.log('Generated dark_wizard_cast.png');
+}
+
+// Generate boss sprite
+function generateBossSprites() {
+    // Boss idle
+    const ctxIdle = createCanvas(64, 64);
+    
+    // Transparent background
+    ctxIdle.clearRect(0, 0, 64, 64);
+    
+    // Boss body (dark red)
+    ctxIdle.fillStyle = '#900';
+    
+    // Larger body
+    ctxIdle.fillRect(22, 24, 20, 32);
+    
+    // Head
+    ctxIdle.beginPath();
+    ctxIdle.arc(32, 16, 14, 0, Math.PI * 2);
+    ctxIdle.fill();
+    
+    // Horns
+    ctxIdle.beginPath();
+    ctxIdle.moveTo(24, 10);
+    ctxIdle.lineTo(18, 0);
+    ctxIdle.lineTo(26, 8);
+    ctxIdle.closePath();
+    ctxIdle.fill();
+    
+    ctxIdle.beginPath();
+    ctxIdle.moveTo(40, 10);
+    ctxIdle.lineTo(46, 0);
+    ctxIdle.lineTo(38, 8);
+    ctxIdle.closePath();
+    ctxIdle.fill();
+    
+    // Eyes
+    ctxIdle.fillStyle = '#ff0';
+    ctxIdle.beginPath();
+    ctxIdle.arc(26, 14, 3, 0, Math.PI * 2);
+    ctxIdle.arc(38, 14, 3, 0, Math.PI * 2);
+    ctxIdle.fill();
+    
+    saveCanvas(ctxIdle, 'boss_idle.png');
+    console.log('Generated boss_idle.png');
+    
+    // Boss attack
+    const ctxAttack = createCanvas(64, 64);
+    
+    // Transparent background
+    ctxAttack.clearRect(0, 0, 64, 64);
+    
+    // Boss body (dark red)
+    ctxAttack.fillStyle = '#900';
+    
+    // Larger body
+    ctxAttack.fillRect(22, 24, 20, 32);
+    
+    // Head
+    ctxAttack.beginPath();
+    ctxAttack.arc(32, 16, 14, 0, Math.PI * 2);
+    ctxAttack.fill();
+    
+    // Horns
+    ctxAttack.beginPath();
+    ctxAttack.moveTo(24, 10);
+    ctxAttack.lineTo(18, 0);
+    ctxAttack.lineTo(26, 8);
+    ctxAttack.closePath();
+    ctxAttack.fill();
+    
+    ctxAttack.beginPath();
+    ctxAttack.moveTo(40, 10);
+    ctxAttack.lineTo(46, 0);
+    ctxAttack.lineTo(38, 8);
+    ctxAttack.closePath();
+    ctxAttack.fill();
+    
+    // Eyes (angry)
+    ctxAttack.fillStyle = '#f00';
+    ctxAttack.beginPath();
+    ctxAttack.arc(26, 14, 4, 0, Math.PI * 2);
+    ctxAttack.arc(38, 14, 4, 0, Math.PI * 2);
+    ctxAttack.fill();
+    
+    // Attack claws
+    ctxAttack.fillStyle = '#600';
+    ctxAttack.beginPath();
+    ctxAttack.moveTo(16, 30);
+    ctxAttack.lineTo(10, 26);
+    ctxAttack.lineTo(14, 34);
+    ctxAttack.lineTo(8, 32);
+    ctxAttack.lineTo(16, 38);
+    ctxAttack.closePath();
+    ctxAttack.fill();
+    
+    ctxAttack.beginPath();
+    ctxAttack.moveTo(48, 30);
+    ctxAttack.lineTo(54, 26);
+    ctxAttack.lineTo(50, 34);
+    ctxAttack.lineTo(56, 32);
+    ctxAttack.lineTo(48, 38);
+    ctxAttack.closePath();
+    ctxAttack.fill();
+    
+    saveCanvas(ctxAttack, 'boss_attack.png');
+    console.log('Generated boss_attack.png');
+}
+
+// Generate all enemy sprites
+function generateAllEnemySprites() {
+    console.log('Generating enemy sprites...');
+    generateSkeletonIdle();
+    generateGoblinSprites();
+    generateWizardSprites();
+    generateBossSprites();
+    console.log('All enemy sprites generated!');
+    
+    // Display instructions
+    alert('Enemy sprites generated! Please save them to the assets/sprites/enemies/ directory.');
+}
+
+// Call the function to generate all enemy sprites
+generateAllEnemySprites();

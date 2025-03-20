@@ -105,6 +105,9 @@ body {
     grid-template-columns: repeat(5, 1fr);
     grid-gap: 10px;
     flex-grow: 1;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 5px;
 }
 
 .inventory-slot {
@@ -152,4 +155,53 @@ body {
     width: 0%;
     background-color: #f00;
     transition: width 0.3s ease;
+}
+
+.error-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(255, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    z-index: 1000;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.game-over {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 5px;
+    text-align: center;
+    z-index: 1000;
+    width: 300px;
+}
+
+.game-over h2 {
+    color: #f00;
+    margin-top: 0;
+}
+
+.game-over button {
+    background-color: #f00;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin-top: 20px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 5px;
+}
+
+.game-over button:hover {
+    background-color: #c00;
 }

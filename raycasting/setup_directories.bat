@@ -9,6 +9,13 @@ if not exist assets\audio mkdir assets\audio
 if not exist assets\maps mkdir assets\maps
 if not exist assets\ui mkdir assets\ui
 
+REM Create subdirectories for specific asset types
+if not exist assets\sprites\enemies mkdir assets\sprites\enemies
+if not exist assets\sprites\items mkdir assets\sprites\items
+if not exist assets\sprites\player mkdir assets\sprites\player
+if not exist assets\audio\music mkdir assets\audio\music
+if not exist assets\audio\sfx mkdir assets\audio\sfx
+
 echo Directory structure created successfully!
 echo.
 echo Next steps:

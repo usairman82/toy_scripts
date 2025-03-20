@@ -26,10 +26,18 @@ A first-person dungeon adventure game that runs entirely in the browser using Ja
 1. Clone or download this repository
 2. Run the setup script to create the necessary directories:
    - On Windows: Double-click `setup_directories.bat` or run `npm run setup`
-3. Generate the placeholder textures:
+3. Generate the game assets using one of these methods:
+   
+   **Option A: Python Asset Generator (Recommended)**
+   - Make sure you have Python 3.6+ installed
+   - Double-click `generate_assets.bat` to run the asset generator
+   - All assets will be automatically created and saved to the correct directories
+   
+   **Option B: Browser-based Asset Generator**
    - Open `generate_textures.html` in your browser
    - Click the "Generate All Textures" button
    - Save each texture to its appropriate directory as prompted
+   
 4. Open `index.html` in your browser to play the game
 
 ### Development Setup
@@ -174,19 +182,32 @@ If you prefer to set up the S3 bucket manually:
 
 ```
 /dungeon-crawler/
-├── index.html         # Main HTML entry point
-├── game.js            # Core game logic
-├── engine.js          # Raycasting engine
-├── styles.css         # Game styling
-├── assets/            # Assets directory
-│   ├── textures/      # Wall & floor textures
-│   ├── sprites/       # Enemies, items, projectiles
-│   ├── audio/         # Game sound effects and music
-│   ├── maps/          # Level definitions in JSON
-│   ├── ui/            # UI Elements
-├── generate_textures.html  # Tool to generate placeholder textures
-├── generate_textures.js    # Texture generation script
-├── README.md          # Project documentation
+├── index.html              # Main HTML entry point
+├── game.js                 # Core game logic
+├── engine.js               # Raycasting engine
+├── styles.css              # Game styling
+├── assets/                 # Assets directory
+│   ├── textures/           # Wall & floor textures
+│   ├── sprites/            # Enemies, items, projectiles
+│   │   ├── enemies/        # Enemy sprites
+│   │   ├── items/          # Item sprites
+│   │   └── player/         # Player sprites
+│   ├── audio/              # Game sound effects and music
+│   │   ├── music/          # Background music
+│   │   └── sfx/            # Sound effects
+│   ├── maps/               # Level definitions in JSON
+│   └── ui/                 # UI Elements
+├── generate_assets.py      # Python script to generate all assets
+├── generate_assets.bat     # Batch file to run the Python asset generator
+├── setup_directories.bat   # Creates the directory structure
+├── generate_textures.html  # Browser-based tool to generate textures
+├── generate_textures.js    # JavaScript texture generation script
+├── generate_screenshot.html # Tool to generate game screenshot
+├── config.json             # Game configuration
+├── package.json            # Project configuration
+├── deploy-to-s3.js         # S3 deployment script
+├── README.md               # Project documentation
+└── LICENSE                 # MIT License
 ```
 
 ## Browser Compatibility

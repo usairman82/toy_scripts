@@ -1,45 +1,42 @@
 {
   "game": {
     "title": "Dungeon Adventure",
-    "version": "1.0.0",
-    "difficulty": "normal"
+    "version": "1.0.0"
   },
   "display": {
-    "fov": 75,
-    "resolution": "high",
-    "showFps": true,
-    "showMinimap": true
+    "width": 800,
+    "height": 600,
+    "fullscreen": false,
+    "fov": 75
   },
   "audio": {
-    "musicVolume": 0.7,
+    "musicVolume": 0.5,
     "sfxVolume": 0.8,
-    "ambientVolume": 0.5,
-    "muteAll": false
+    "ambientSoundsEnabled": true
   },
   "controls": {
-    "mouseSensitivity": 0.5,
+    "mouseSensitivity": 0.3,
     "invertY": false,
     "keyBindings": {
-      "moveForward": "w",
-      "moveBackward": "s",
+      "forward": "w",
+      "backward": "s",
       "strafeLeft": "a",
       "strafeRight": "d",
+      "attack": "space",
       "interact": "e",
-      "attack": " ",
       "inventory": "i"
     }
   },
   "gameplay": {
-    "playerStartHealth": 100,
-    "playerMaxHealth": 100,
-    "damageMultiplier": 1.0,
-    "enemySpeedMultiplier": 1.0,
-    "startingWeapon": "sword"
+    "difficulty": "normal",
+    "enemyDensity": 1.0,
+    "lootDensity": 1.0
   },
-  "debug": {
+  "depthTextures": {
     "enabled": false,
-    "showCollisionBoxes": false,
-    "godMode": false,
-    "unlockAllLevels": false
+    "density": 0.3,
+    "minDistance": 1.5,
+    "maxDistance": 15.0,
+    "randomSeed": 12345
   }
 }

@@ -5,8 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dungeon Adventure</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        #debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: 1px solid white;
+            padding: 5px;
+            z-index: 1001;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
+    <div id="debug-console"></div>
+    <button id="debug-toggle">Show Debug</button>
     <div id="game-container">
         <canvas id="game-canvas"></canvas>
         <div id="hud">
@@ -27,7 +57,167 @@
             </div>
         </div>
     </div>
-    <script src="engine.js"></script>
-    <script src="game.js"></script>
+    <script>
+        // Debug console implementation
+        const debugConsole = document.getElementById('debug-console');
+        const debugToggle = document.getElementById('debug-toggle');
+        
+        // Override console methods to capture logs
+        const originalConsole = {
+            log: console.log,
+            warn: console.warn,
+            error: console.error
+        };
+        
+        // Function to add message to debug console
+        function addDebugMessage(type, ...args) {
+            const message = args.map(arg => {
+                if (typeof arg === 'object') {
+                    try {
+                        return JSON.stringify(arg);
+                    } catch (e) {
+                        return String(arg);
+                    }
+                }
+                return String(arg);
+            }).join(' ');
+            
+            const entry = document.createElement('div');
+            entry.className = `debug-${type}`;
+            entry.style.color = type === 'error' ? '#f00' : type === 'warn' ? '#ff0' : '#0f0';
+            entry.textContent = `[${type.toUpperCase()}] ${message}`;
+            debugConsole.appendChild(entry);
+            debugConsole.scrollTop = debugConsole.scrollHeight;
+            
+            // Call original console method
+            originalConsole[type](...args);
+        }
+        
+        // Override console methods
+        console.log = function(...args) { addDebugMessage('log', ...args); };
+        console.warn = function(...args) { addDebugMessage('warn', ...args); };
+        console.error = function(...args) { addDebugMessage('error', ...args); };
+        
+        // Toggle debug console visibility
+        debugToggle.addEventListener('click', () => {
+            if (debugConsole.style.display === 'none') {
+                debugConsole.style.display = 'block';
+                debugToggle.textContent = 'Hide Debug';
+            } else {
+                debugConsole.style.display = 'none';
+                debugToggle.textContent = 'Show Debug';
+            }
+        });
+        
+        // Log page load
+        console.log('Page loaded at', new Date().toLocaleTimeString());
+        
+        // Show debug console by default
+        debugConsole.style.display = 'block';
+        debugToggle.textContent = 'Hide Debug';
+        
+        // Add global error handler
+        window.addEventListener('error', function(event) {
+            console.error('Global error:', event.message, 'at', event.filename, 'line', event.lineno, 'column', event.colno);
+            console.error('Error details:', event.error ? event.error.stack : 'No stack trace available');
+            
+            // Create a visible error message
+            const errorElement = document.createElement('div');
+            errorElement.style.position = 'fixed';
+            errorElement.style.top = '100px';
+            errorElement.style.left = '50%';
+            errorElement.style.transform = 'translateX(-50%)';
+            errorElement.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+            errorElement.style.color = 'white';
+            errorElement.style.padding = '15px 20px';
+            errorElement.style.borderRadius = '5px';
+            errorElement.style.fontSize = '16px';
+            errorElement.style.zIndex = '2000';
+            errorElement.style.textAlign = 'center';
+            errorElement.style.maxWidth = '80%';
+            errorElement.innerHTML = `<strong>Error:</strong> ${event.message}<br><small>Check debug console for details</small>`;
+            document.body.appendChild(errorElement);
+            
+            // Prevent the default error handling
+            event.preventDefault();
+        });
+    </script>
+    
+    <!-- Load scripts with error handling -->
+    <script>
+        // Function to load script with error handling
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                console.log(`Attempting to load script: ${src}`);
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    console.log(`Successfully loaded script: ${src}`);
+                    resolve();
+                };
+                script.onerror = (error) => {
+                    console.error(`Failed to load script: ${src}`, error);
+                    reject(new Error(`Failed to load ${src}`));
+                };
+                document.body.appendChild(script);
+            });
+        }
+        
+        // Load scripts sequentially
+        async function loadGameScripts() {
+            try {
+                console.log('Starting to load game scripts');
+                
+                // Load engine.js first
+                await loadScript('engine.js');
+                console.log('Engine.js loaded and executed');
+                
+                // Load audio manager
+                await loadScript('audio-manager.js');
+                console.log('AudioManager.js loaded and executed');
+                
+                // Then load game.js
+                await loadScript('game.js');
+                console.log('Game.js loaded and executed');
+                
+                // Initialize game
+                console.log('Initializing game');
+                try {
+                    // Check if RaycastingEngine is defined
+                    if (typeof RaycastingEngine !== 'undefined') {
+                        console.log('RaycastingEngine class is available');
+                    } else {
+                        console.error('RaycastingEngine class is not defined!');
+                    }
+                    
+                    // Create game instance
+                    console.log('Creating game instance');
+                    window.gameInstance = new DungeonGame();
+                    console.log('Game instance created successfully');
+                } catch (initError) {
+                    console.error('Error initializing game:', initError);
+                    
+                    // Display error on loading screen
+                    const loadingText = document.querySelector('.loading-text');
+                    if (loadingText) {
+                        loadingText.innerHTML = `Error: ${initError.message}<br><small>Check debug console for details</small>`;
+                        loadingText.style.color = '#ff4444';
+                    }
+                }
+            } catch (error) {
+                console.error('Script loading error:', error);
+                
+                // Display error on loading screen
+                const loadingText = document.querySelector('.loading-text');
+                if (loadingText) {
+                    loadingText.innerHTML = `Error: ${error.message}<br><small>Check debug console for details</small>`;
+                    loadingText.style.color = '#ff4444';
+                }
+            }
+        }
+        
+        // Start loading scripts
+        loadGameScripts();
+    </script>
 </body>
 </html>
