@@ -432,9 +432,9 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
         // Validate bullet creation parameters
         this.validateBulletParams();
         
-        // Calculate bullet spawn position - ensure it's well outside the enemy's bounding box
+        // Calculate bullet spawn position - closer to the enemy for better close-range combat
         const enemyHeight = this.displayHeight;
-        const bulletOffsetY = enemyHeight * 2; // Spawn bullets at 2x the enemy's height away
+        const bulletOffsetY = enemyHeight * 0.8; // Reduced from 2x to 0.8x for closer bullet spawning
         
         // Create bullets based on enemy type
         switch (this.type) {
@@ -605,9 +605,12 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
     
     playShootSound() {
         try {
-            if (!GAME.isMuted && this.scene.cache.audio.exists('enemy_shoot')) {
-                this.scene.sound.play('enemy_shoot', { volume: 0.3 });
-            }
+            // Don't play sounds if muted
+            if (GAME.isMuted) return;
+            
+            // Try to play the sound directly without checking if it exists first
+            // This will work with the silent fallbacks created in BootScene
+            this.scene.sound.play('enemy_shoot', { volume: 0.3 });
         } catch (err) {
             console.warn("Could not play enemy_shoot sound:", err);
         }

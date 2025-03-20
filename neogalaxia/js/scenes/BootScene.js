@@ -73,10 +73,16 @@ class BootScene extends Phaser.Scene {
             this.validateSpriteSize(key, data, 30, 30);
         });
         
-        // Explosion spritesheet
+        // Explosion spritesheets
         this.load.spritesheet('explosion', 'assets/sprites/explosion_spritesheet.png', {
             frameWidth: 128,
             frameHeight: 128
+        });
+        
+        // New explosion spritesheet with 4x4 grid of 64x64 frames
+        this.load.spritesheet('explosion_spritesheet_2', 'assets/sprites/explosion_spritesheet_2.png', {
+            frameWidth: 64,
+            frameHeight: 64
         });
         
         // Power-up sprites
@@ -130,6 +136,17 @@ class BootScene extends Phaser.Scene {
                 frames: [6, 7, 8, 7, 8, 7, 8] 
             }),
             frameRate: 12,
+            repeat: 0
+        });
+        
+        // Create new explosion animation using the 4x4 spritesheet
+        this.anims.create({
+            key: 'explode2',
+            frames: this.anims.generateFrameNumbers('explosion_spritesheet_2', { 
+                start: 0,
+                end: 15
+            }),
+            frameRate: 24,
             repeat: 0
         });
 

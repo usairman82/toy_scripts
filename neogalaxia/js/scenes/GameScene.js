@@ -231,6 +231,8 @@ class GameScene extends Phaser.Scene {
             mobile: GAME.isMobile ? {
                 left: this.mobileControls?.left,
                 right: this.mobileControls?.right,
+                up: this.mobileControls?.up,
+                down: this.mobileControls?.down,
                 fire: this.mobileControls?.fire
             } : null
         };
@@ -240,11 +242,21 @@ class GameScene extends Phaser.Scene {
             console.log("Keyboard state:", keyboardState);
         }
         
-        // Handle keyboard input
+        // Handle horizontal movement
         if (this.cursors.left.isDown || this.wasd.left.isDown || (GAME.isMobile && this.mobileControls?.left)) {
             this.player.body.setVelocityX(-moveSpeed);
         } else if (this.cursors.right.isDown || this.wasd.right.isDown || (GAME.isMobile && this.mobileControls?.right)) {
             this.player.body.setVelocityX(moveSpeed);
+        }
+        
+        // Handle vertical movement - limited to bottom third of screen
+        const bottomThird = this.cameras.main.height * 2/3;
+        if ((this.cursors.up.isDown || this.wasd.up.isDown || (GAME.isMobile && this.mobileControls?.up)) && 
+            this.player.y > bottomThird) {
+            this.player.body.setVelocityY(-moveSpeed);
+        } else if ((this.cursors.down.isDown || this.wasd.down.isDown || (GAME.isMobile && this.mobileControls?.down)) && 
+                  this.player.y < this.cameras.main.height - 50) {
+            this.player.body.setVelocityY(moveSpeed);
         }
         
         // Handle shooting
@@ -505,9 +517,9 @@ class GameScene extends Phaser.Scene {
         // Find the closest enemy to target
         let closestEnemy = this.findClosestEnemy();
         
-        // Calculate bullet spawn position - ensure it's well outside the player's bounding box
-        const playerHeight = this.player.displayHeight;
-        const bulletOffsetY = playerHeight * 2; // Spawn bullets at 2x the player's height away
+    // Calculate bullet spawn position - closer to the player for better close-range combat
+    const playerHeight = this.player.displayHeight;
+    const bulletOffsetY = playerHeight * 0.8; // Reduced from 2x to 0.8x for closer bullet spawning
         
         // Create bullet(s) based on power-up status
         if (this.powerups.doubleShot.active) {
@@ -607,10 +619,10 @@ class GameScene extends Phaser.Scene {
             this.playSound('explosion', 0.6);
             
             // Create explosion animation at enemy position
-            const explosion = this.add.sprite(enemy.x, enemy.y, 'explosion');
-            explosion.setScale(0.5); // Reduced scale for better proportions
+            const explosion = this.add.sprite(enemy.x, enemy.y, 'explosion_spritesheet_2');
+            explosion.setScale(1.0); // No scaling needed for the new spritesheet
             explosion.setOrigin(0.5, 0.5); // Center the explosion
-            explosion.play('explode');
+            explosion.play('explode2');
             explosion.once('animationcomplete', () => {
                 explosion.destroy();
             });
@@ -639,9 +651,9 @@ class GameScene extends Phaser.Scene {
         // Destroy the bullet
         actualBullet.destroy();
         
-        // If player has shield, ignore damage
-        if (this.powerups.shield.active) {
-            console.log("Player has shield - ignoring damage");
+        // If player has shield or is invulnerable, ignore damage
+        if (this.powerups.shield.active || actualPlayer.invulnerable) {
+            console.log("Player has shield or is invulnerable - ignoring damage");
             return;
         }
         
@@ -658,8 +670,8 @@ class GameScene extends Phaser.Scene {
     }
     
     playerHitEnemy(player, enemy) {
-        // If player has shield, ignore collision
-        if (this.powerups.shield.active) {
+        // If player has shield or is invulnerable, ignore collision
+        if (this.powerups.shield.active || player.invulnerable) {
             return;
         }
         
@@ -674,10 +686,10 @@ class GameScene extends Phaser.Scene {
         this.playSound('explosion', 0.7);
         
         // Create explosion animation at player position
-        const explosion = this.add.sprite(this.player.x, this.player.y, 'explosion');
-        explosion.setScale(0.6); // Slightly larger for player but not too large
+        const explosion = this.add.sprite(this.player.x, this.player.y, 'explosion_spritesheet_2');
+        explosion.setScale(1.2); // Slightly larger for player but not too large
         explosion.setOrigin(0.5, 0.5); // Center the explosion
-        explosion.play('explode');
+        explosion.play('explode2');
         explosion.once('animationcomplete', () => {
             explosion.destroy();
         });
@@ -711,8 +723,10 @@ class GameScene extends Phaser.Scene {
         this.player.setActive(true).setVisible(true);
         
         // Give temporary invulnerability
+        this.player.invulnerable = true;
         this.player.setAlpha(0.5);
         this.time.delayedCall(2000, () => {
+            this.player.invulnerable = false;
             this.player.setAlpha(1);
         }, [], this);
     }
@@ -832,12 +846,9 @@ class GameScene extends Phaser.Scene {
             // Don't play sounds if muted
             if (GAME.isMuted) return;
             
-            // Check if sound exists
-            if (this.sound.get(key)) {
-                this.sound.play(key, { volume: volume });
-            } else {
-                console.warn(`Sound '${key}' not found`);
-            }
+            // Try to play the sound directly without checking if it exists first
+            // This will work with the silent fallbacks created in BootScene
+            this.sound.play(key, { volume: volume });
         } catch (error) {
             console.error(`Error playing sound '${key}':`, error);
         }

@@ -1,105 +1,74 @@
-I want to build a web-based clone of Galaga using JavaScript. The game should be developed using Phaser.js (or another reliable framework if suggested), and it will be hosted as a static website on AWS S3. The primary target platform is desktop/laptop, but it should also include mobile touch controls.
+# Prompt for Generating an Explosion Spritesheet
 
-Game Features & Mechanics
-1. Player Controls
-Desktop:
-Arrow keys (or WASD) for movement.
-Spacebar for shooting.
-Escape (Esc) to pause.
-Enter to confirm selections or restart the game.
-Mobile:
-A D-pad in the bottom-left corner for movement.
-A "Fire" button on the bottom-right for shooting.
-A mute button in the top-right to toggle audio.
-2. Enemies & Behaviors
-Enemy Types:
-Basic Fighter: Moves in formation, occasionally fires at the player.
-Fast Attacker: Zigzag movement, higher fire rate.
-Boss Enemy: High health, multiple projectiles, advanced attack patterns.
-Enemy Waves:
-Enemies spawn in formation at the beginning of each level.
-As the level increases, enemies become faster, shoot more frequently, and take more hits to destroy.
-3. Collision Mechanics
-Player bullets hit enemies → Enemy is destroyed, explosion animation plays, points awarded.
-Enemy bullets hit player → Player loses health. If health reaches 0, the player loses a life.
-Player collides with an enemy → Instant loss of one life.
-Player collects a power-up → Gains a temporary ability (shield, double-shot, speed boost).
-4. Scoring System
-Basic enemy: 100 points
-Fast attacker: 200 points
-Boss enemy: 500 points
-Power-up collected: 50 points
-5. Level Progression
-The game follows the original Galaga level system:
-255 levels before the kill screen.
-Increasing difficulty per level.
-Boss enemies appear at certain stages.
-6. Level 256 Kill Screen
-When reaching Level 256:
-The game simulates a graphical corruption bug (scrambled sprites, flickering UI, frozen gameplay).
-Secret Bypass Code:
-Input ⬆️⬆️⬇️⬇️⬅️➡️⬅️➡️ Enter within a few seconds.
-If successful, display: "You have transcended the arcade! The game resets, but your legend continues..."
-Bonus points are awarded, and the game restarts at Level 1 with a slight difficulty boost.
-If unsuccessful, the game remains frozen, requiring a restart.
-Assets & File Names
-1. Sprites & Animations
-Asset	Description	File Name
-Player Ship	The player's spaceship	player_ship.png
-Enemy Type 1	Basic enemy	enemy_1.png
-Enemy Type 2	Fast-moving enemy	enemy_2.png
-Boss Enemy	Strongest enemy	enemy_boss.png
-Player Bullet	Player's projectile	player_bullet.png
-Enemy Bullet	Enemy's projectile	enemy_bullet.png
-Explosion	Destroyed enemy/player animation	explosion_spritesheet.png
-Power-ups	Various power-up effects	powerup_shield.png, powerup_double.png, powerup_speed.png
-Background	Starry space background	background.png
-UI Elements	Score, lives, health bars	ui_score.png, ui_health.png, ui_lives.png
-2. Sound & Audio
-Sound Effect	Description	File Name
-Player Fire	Sound when the player shoots	player_shoot.wav
-Enemy Fire	Sound when an enemy shoots	enemy_shoot.wav
-Explosion	Sound when a ship is destroyed	explosion.wav
-Power-up Pickup	Sound when collecting power-ups	powerup_pickup.wav
-Enemy Spawn	Sound when enemies enter the screen	enemy_spawn.wav
-Background Music	Looped track for ambiance	bg_music.mp3
-Game Over	Played when the player loses	game_over.wav
-Mobile-Friendly Design
-Use responsive scaling for UI elements.
-Ensure touch controls do not obstruct gameplay.
-Allow a fullscreen toggle for immersive play.
-Optimize performance by:
-Lowering texture resolution for mobile devices.
-Using efficient rendering techniques.
-Technical Implementation
-1. Phaser.js Game Structure
-Scene: Boot → Preloads assets.
-Scene: Menu → Shows start menu, high scores.
-Scene: Game → Handles the main game loop.
-Scene: GameOver → Displays final score and restart prompt.
-2. Physics & Collision Detection
-Use Arcade Physics in Phaser.
-Ensure that:
-Enemy bullets correctly collide with the player.
-Player bullets correctly collide with enemies.
-3. Game Loop
-Start Menu → Gameplay → Game Over sequence.
-Waves of enemies spawn per level.
-Level 256 bug triggers visual corruption.
-Stretch Goals
-(Optional features for later)
+## Task Description
+Create a properly sized and formatted explosion spritesheet for a 2D space shooter game. The spritesheet will be used to animate explosions when enemies or the player are destroyed.
 
-Multiplayer mode (local co-op or online).
-Different ship designs for player customization.
-Achievement system for special challenges.
-Final Notes
-Prioritize performance to keep gameplay smooth at 60 FPS.
-Ensure cross-browser compatibility (Chrome, Firefox, Safari, Edge).
-Make the game easy to deploy to an AWS S3 static website.
-Expected Output
-The LLM should generate:
+## Technical Specifications
+- **Total Spritesheet Dimensions**: Create a spritesheet with 16 frames arranged in a 4x4 grid
+- **Individual Frame Size**: Each frame should be exactly 64x64 pixels
+- **File Format**: PNG with transparency
+- **Color Depth**: 32-bit (RGBA)
+- **Total Resolution**: 256x256 pixels (4 frames × 64 pixels wide by 4 frames × 64 pixels tall)
 
-A complete Phaser.js game setup with all the above features.
-Properly structured JavaScript files for maintainability.
-HTML & CSS for UI elements like score display and mobile controls.
-A README file explaining deployment steps.
+## Visual Style Requirements
+- **Style**: Pixel art style that matches a retro space shooter aesthetic
+- **Color Palette**: Use bright oranges, yellows, and reds for the explosion with some white at the center
+- **Animation Flow**: The explosion should start small, expand to its maximum size, and then fade out
+- **Transparency**: The edges of the explosion should have partial transparency to blend with the background
+
+## Frame-by-Frame Breakdown
+1. **Frame 1 (0,0)**: Small initial burst/flash at the center (10-20% of frame size)
+2. **Frame 2 (0,1)**: Expanding explosion (20-30% of frame size)
+3. **Frame 3 (0,2)**: Further expansion (30-40% of frame size)
+4. **Frame 4 (0,3)**: Continued expansion (40-50% of frame size)
+5. **Frame 5 (1,0)**: Larger explosion with more detail (50-60% of frame size)
+6. **Frame 6 (1,1)**: Approaching maximum size (60-70% of frame size)
+7. **Frame 7 (1,2)**: Near maximum size (70-80% of frame size)
+8. **Frame 8 (1,3)**: Maximum size explosion (80-90% of frame size)
+9. **Frame 9 (2,0)**: Start of dissipation, still at maximum size but less dense
+10. **Frame 10 (2,1)**: Continued dissipation, slightly smaller
+11. **Frame 11 (2,2)**: Further dissipation, more transparent
+12. **Frame 12 (2,3)**: Significantly dissipated, very transparent
+13. **Frame 13 (3,0)**: Almost completely dissipated, mostly transparent
+14. **Frame 14 (3,1)**: Final wisps of the explosion, barely visible
+15. **Frame 15 (3,2)**: Last traces of smoke/particles
+16. **Frame 16 (3,3)**: Empty frame or extremely faint residual particles
+
+## Animation Sequence
+The game will use a sequence of frames for the explosion animation. For a complete animation, use all 16 frames in order. For a shorter animation, you might use frames 0 through 12.
+
+This creates a flickering effect as the explosion dissipates.
+
+## Important Considerations
+- Ensure each frame is centered within its 64x64 pixel boundary
+- The explosion should not touch the edges of each frame to avoid clipping
+- Use a consistent light source direction throughout all frames
+- Include small particle effects that emanate from the center
+- Add subtle smoke/debris elements that persist in the later frames
+
+## Game Context
+This spritesheet will be used in a retro-style space shooter game where the player controls a spaceship fighting against enemy ships. The explosion animation plays when enemies are destroyed or when the player's ship is hit.
+
+## Technical Implementation Note
+The animation will be implemented in Phaser 3 with the following code:
+```javascript
+// Create explosion animation at position
+const explosion = scene.add.sprite(x, y, 'explosion_spritesheet_2');
+explosion.setScale(1.0); // Scale may be adjusted based on the entity size
+explosion.setOrigin(0.5, 0.5); // Center the explosion
+explosion.play('explode');
+explosion.once('animationcomplete', () => {
+    explosion.destroy();
+});
+
+// The animation is defined in the BootScene with:
+this.anims.create({
+    key: 'explode',
+    frames: this.anims.generateFrameNumbers('explosion_spritesheet_2', { 
+        start: 0,
+        end: 15
+    }),
+    frameRate: 24,
+    repeat: 0
+});
+```

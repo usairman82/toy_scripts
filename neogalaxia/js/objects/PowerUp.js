@@ -10,8 +10,18 @@ class PowerUp extends Phaser.Physics.Arcade.Sprite {
         // Store power-up type
         this.powerupType = type;
         
-        // Set collision body size
-        this.setSize(this.width * 0.8, this.height * 0.8);
+        // Set appropriate scale for power-up based on type
+        // Make sure power-ups are similar in size to the player ship
+        if (type === 'speed') {
+            // The speed power-up sprite is much larger, so it needs a smaller scale
+            this.setScale(0.02);
+        } else {
+            // Other power-ups may need adjustment too
+            this.setScale(0.05);
+        }
+        
+        // Set collision body size to match the visual size
+        this.setSize(this.displayWidth * 0.8, this.displayHeight * 0.8);
         
         // Set downward movement
         this.setVelocityY(100);

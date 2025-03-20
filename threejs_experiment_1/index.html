@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural World Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="loading-container">
+            <h1>Procedural World Explorer</h1>
+            <!-- Globe container will be inserted here by LoadingScreen.js -->
+            <div class="globe-container">
+                <!-- Three.js canvas will be inserted here -->
+            </div>
+            <div class="progress-bar">
+                <div class="progress"></div>
+            </div>
+            <p class="loading-text">Loading world...</p>
+        </div>
+    </div>
+
+    <div id="ui-container">
+        <div id="fps-counter"></div>
+        <div id="weather-info"></div>
+        <div id="controls-info">
+            <p>WASD: Move | SPACE: Jump | SHIFT: Sprint</p>
+            <p>MOUSE: Look | F: Toggle Camera | M: Toggle Music</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.0/build/index.module.js"
+            }
+        }
+    </script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background-color: #000;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    color: #fff;
+    transition: opacity 1s ease-in-out;
+}
+
+.loading-container {
+    text-align: center;
+    width: 80%;
+    max-width: 500px;
+}
+
+.globe-container {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.globe-container canvas {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(0, 136, 255, 0.3);
+}
+
+.globe-container::after {
+    content: '';
+    position: absolute;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    box-shadow: 0 0 30px rgba(0, 136, 255, 0.2);
+    pointer-events: none;
+}
+
+.loading-container h1 {
+    margin-bottom: 20px;
+    font-size: 2rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: rgba(51, 51, 51, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.progress {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: visible;
+}
+
+.progress::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 5px;
+    background-color: #fff;
+    box-shadow: 0 0 10px #fff, 0 0 5px #4CAF50;
+    opacity: 0.7;
+}
+
+.loading-text {
+    font-size: 1rem;
+    color: #ccc;
+    text-shadow: 0 0 5px rgba(0, 136, 255, 0.5);
+    margin-bottom: 10px;
+}
+
+#ui-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+    color: #fff;
+    padding: 20px;
+}
+
+#fps-counter {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+}
+
+#weather-info {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+}
+
+#controls-info {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    text-align: center;
+}
