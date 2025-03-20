@@ -1,0 +1,38 @@
+{
+  "name": "dungeon-adventure",
+  "version": "1.0.0",
+  "description": "A first-person dungeon adventure game with raycasting, texture mapping, and combat",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -o",
+    "deploy": "node deploy-to-s3.js",
+    "setup": "setup_directories.bat",
+    "generate-textures": "start generate_textures.html",
+    "generate-screenshot": "start generate_screenshot.html"
+  },
+  "keywords": [
+    "game",
+    "dungeon",
+    "raycasting",
+    "javascript",
+    "canvas",
+    "webgl"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/dungeon-adventure.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/dungeon-adventure/issues"
+  },
+  "homepage": "https://github.com/yourusername/dungeon-adventure#readme",
+  "private": true
+}

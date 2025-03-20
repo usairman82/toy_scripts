@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Dungeon Game Screenshot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .instructions {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        canvas {
+            display: block;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dungeon Game Screenshot Generator</h1>
+    
+    <div class="instructions">
+        <p>This page will generate a screenshot for the Dungeon Adventure game. Click the button below to generate the screenshot. The browser will prompt you to download the image.</p>
+        <p><strong>Important:</strong> After downloading the screenshot, save it as <code>screenshot.png</code> in the root directory of the project.</p>
+    </div>
+    
+    <canvas id="screenshot-canvas" width="800" height="450"></canvas>
+    
+    <button id="generate-button">Generate Screenshot</button>
+    
+    <script>
+        // Function to generate a screenshot
+        function generateScreenshot() {
+            const canvas = document.getElementById('screenshot-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw ceiling
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+            
+            // Draw floor
+            ctx.fillStyle = '#555';
+            ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+            
+            // Draw walls
+            const numWalls = 10;
+            const wallWidth = canvas.width / numWalls;
+            
+            for (let i = 0; i < numWalls; i++) {
+                // Calculate wall height based on distance
+                const distance = 1 + i * 0.5;
+                const wallHeight = Math.min(canvas.height, (canvas.height * 1.5) / distance);
+                
+                // Calculate wall position
+                const wallX = i * wallWidth;
+                const wallY = (canvas.height - wallHeight) / 2;
+                
+                // Draw wall
+                const brightness = Math.min(1, 1 - distance / 10);
+                const color = `rgb(${Math.floor(200 * brightness)}, ${Math.floor(200 * brightness)}, ${Math.floor(200 * brightness)})`;
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(wallX, wallY, wallWidth, wallHeight);
+                
+                // Draw wall texture
+                if (i % 2 === 0) {
+                    // Stone pattern
+                    ctx.fillStyle = `rgba(100, 100, 100, ${brightness})`;
+                    
+                    for (let y = 0; y < wallHeight; y += 20) {
+                        for (let x = 0; x < wallWidth; x += 20) {
+                            if ((x + y) % 40 === 0) {
+                                ctx.fillRect(wallX + x, wallY + y, 10, 10);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Draw enemy
+            const enemyX = canvas.width * 0.7;
+            const enemyY = canvas.height * 0.6;
+            const enemySize = 60;
+            
+            // Enemy body
+            ctx.fillStyle = '#f8f8ff';
+            ctx.beginPath();
+            ctx.arc(enemyX, enemyY - enemySize / 2, enemySize / 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillRect(enemyX - enemySize / 6, enemyY - enemySize / 3, enemySize / 3, enemySize / 2);
+            
+            // Enemy eyes
+            ctx.fillStyle = '#f00';
+            ctx.beginPath();
+            ctx.arc(enemyX - enemySize / 10, enemyY - enemySize / 2, enemySize / 15, 0, Math.PI * 2);
+            ctx.arc(enemyX + enemySize / 10, enemyY - enemySize / 2, enemySize / 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw weapon
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(canvas.width * 0.9, canvas.height * 0.7, 10, 100);
+            
+            ctx.fillStyle = '#c0c0c0';
+            ctx.fillRect(canvas.width * 0.88, canvas.height * 0.6, 14, 40);
+            
+            // Draw HUD
+            // Health bar
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(20, canvas.height - 30, 200, 20);
+            
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(22, canvas.height - 28, 150, 16);
+            
+            // Crosshair
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2 - 10, canvas.height / 2);
+            ctx.lineTo(canvas.width / 2 + 10, canvas.height / 2);
+            ctx.moveTo(canvas.width / 2, canvas.height / 2 - 10);
+            ctx.lineTo(canvas.width / 2, canvas.height / 2 + 10);
+            ctx.stroke();
+            
+            // Game title
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Dungeon Adventure', canvas.width / 2, 30);
+            
+            // Save the screenshot
+            const link = document.createElement('a');
+            link.download = 'screenshot.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Set up the button click handler
+        document.getElementById('generate-button').addEventListener('click', generateScreenshot);
+        
+        // Generate a preview on page load
+        window.addEventListener('load', function() {
+            generateScreenshot();
+        });
+    </script>
+</body>
+</html>

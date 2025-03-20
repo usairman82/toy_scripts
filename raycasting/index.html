@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon Adventure</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="hud">
+            <div id="health-bar-container">
+                <div id="health-bar"></div>
+            </div>
+            <div id="crosshair">+</div>
+            <div id="inventory-toggle">I</div>
+        </div>
+        <div id="inventory" class="hidden">
+            <div id="inventory-title">Inventory</div>
+            <div id="inventory-slots"></div>
+        </div>
+        <div id="loading-screen">
+            <div class="loading-text">Loading Dungeon Adventure...</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+    <script src="engine.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

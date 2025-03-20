@@ -1,0 +1,12 @@
+This is a placeholder for the screenshot.png file.
+
+To generate the actual screenshot:
+1. Open generate_screenshot.html in your browser
+2. Click the "Generate Screenshot" button
+3. Save the downloaded image as screenshot.png in the root directory
+
+Alternatively, you can run:
+npm run generate-screenshot
+
+Note: The actual screenshot.png file should be a PNG image, not a text file.
+This text file is just a placeholder to remind you to generate the real screenshot.

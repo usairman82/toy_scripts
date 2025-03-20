@@ -1,0 +1,45 @@
+{
+  "game": {
+    "title": "Dungeon Adventure",
+    "version": "1.0.0",
+    "difficulty": "normal"
+  },
+  "display": {
+    "fov": 75,
+    "resolution": "high",
+    "showFps": true,
+    "showMinimap": true
+  },
+  "audio": {
+    "musicVolume": 0.7,
+    "sfxVolume": 0.8,
+    "ambientVolume": 0.5,
+    "muteAll": false
+  },
+  "controls": {
+    "mouseSensitivity": 0.5,
+    "invertY": false,
+    "keyBindings": {
+      "moveForward": "w",
+      "moveBackward": "s",
+      "strafeLeft": "a",
+      "strafeRight": "d",
+      "interact": "e",
+      "attack": " ",
+      "inventory": "i"
+    }
+  },
+  "gameplay": {
+    "playerStartHealth": 100,
+    "playerMaxHealth": 100,
+    "damageMultiplier": 1.0,
+    "enemySpeedMultiplier": 1.0,
+    "startingWeapon": "sword"
+  },
+  "debug": {
+    "enabled": false,
+    "showCollisionBoxes": false,
+    "godMode": false,
+    "unlockAllLevels": false
+  }
+}
