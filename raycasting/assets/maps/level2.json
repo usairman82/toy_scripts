@@ -29,7 +29,8 @@
     "G": {"type": "enemy", "enemyType": "goblin"},
     "Z": {"type": "enemy", "enemyType": "wizard"},
     "C": {"type": "chest", "contains": "key_silver"},
-    "P": {"type": "chest", "contains": "health_potion"}
+    "P": {"type": "chest", "contains": "health_potion"},
+    "secret_4_17": {"type": "secret_door"}
   },
   "playerStart": {"x": 1, "y": 1}
 }

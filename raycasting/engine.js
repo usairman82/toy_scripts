@@ -352,9 +352,16 @@ class RaycastingEngine {
         
         // If it's a door, check if it's open
         if (cell === 'D') {
-            // Find the door object in the map objects
+            // Get the door object from the map objects
             const doorObj = this.map.objects['D'];
-            return !doorObj || !doorObj.open;
+            
+            // Door is a wall if it exists and is not open
+            if (doorObj && !doorObj.open) {
+                return true;
+            }
+            
+            // Door is not a wall if it's open or doesn't exist
+            return false;
         }
         
         return cell === 'W';
@@ -376,13 +383,87 @@ class RaycastingEngine {
         
         const cell = this.map.layout[mapY][mapX];
         
+        // Check if this is a secret wall
+        const isSecretWall = this.isSecretWall(mapX, mapY);
+        
+        // If debug mode is enabled and this is a secret wall, return red texture
+        if (window.gameInstance && window.gameInstance.debug.enabled && isSecretWall) {
+            // Create a red texture if it doesn't exist
+            if (!this.textures['debug_red']) {
+                this.createRedTexture();
+            }
+            return 'debug_red';
+        }
+        
         if (cell === 'W') {
+            // If it's a secret wall, return secret wall texture
+            if (isSecretWall) {
+                return 'secret_wall';
+            }
             return 'stone_wall';
         } else if (cell === 'D') {
             return this.map.objects[cell]?.open ? 'door_open' : 'door_closed';
         }
         
         return 'stone_wall'; // Default texture
+    }
+    
+    /**
+     * Check if a wall is a secret wall
+     * @param {number} mapX - X coordinate in the map
+     * @param {number} mapY - Y coordinate in the map
+     * @returns {boolean} - True if the wall is a secret wall
+     */
+    isSecretWall(mapX, mapY) {
+        // Check if the cell is a wall
+        if (mapX < 0 || mapX >= this.map.width || mapY < 0 || mapY >= this.map.height) {
+            return false;
+        }
+        
+        const cell = this.map.layout[mapY][mapX];
+        
+        if (cell !== 'W') {
+            return false;
+        }
+        
+        // Check if this wall has a secret door marker in the map objects
+        // This is a simple implementation - in a real game, you might have a more complex way to identify secret walls
+        // For now, we'll check if there's a 'secret' property in the map objects for this position
+        const secretKey = `secret_${mapX}_${mapY}`;
+        return this.map.objects && this.map.objects[secretKey];
+    }
+    
+    /**
+     * Create a red texture for debug mode
+     */
+    createRedTexture() {
+        // Create a red texture for debug mode
+        this.offscreenCanvas.width = 64;
+        this.offscreenCanvas.height = 64;
+        
+        // Fill with red color
+        this.offscreenCtx.fillStyle = '#ff0000';
+        this.offscreenCtx.fillRect(0, 0, 64, 64);
+        
+        // Add some texture to make it more visible
+        this.offscreenCtx.fillStyle = '#ff3333';
+        for (let y = 0; y < 64; y += 8) {
+            for (let x = 0; x < 64; x += 8) {
+                if ((x + y) % 16 === 0) {
+                    this.offscreenCtx.fillRect(x, y, 4, 4);
+                }
+            }
+        }
+        
+        // Create an image from the canvas
+        const img = new Image();
+        img.src = this.offscreenCanvas.toDataURL();
+        
+        // Store the texture
+        this.textures['debug_red'] = img;
+        
+        // Process the texture data
+        this.processTextureData('debug_red', img);
     }
     
     /**
@@ -511,6 +592,14 @@ class RaycastingEngine {
             // Cast rays
             const startAngle = this.player.angle - this.fov / 2;
             
+            // Check if debug mode is enabled to visualize raycasting
+            const debugMode = window.gameInstance?.debug?.enabled || false;
+            
+            // If in debug mode, draw a 2D map overlay
+            if (debugMode) {
+                this.renderDebugMap();
+            }
+            
             for (let i = 0; i < this.numRays; i++) {
                 try {
                     const rayAngle = startAngle + i * this.rayAngleStep;
@@ -556,6 +645,11 @@ class RaycastingEngine {
                             // Fallback to solid color rendering if texture is missing
                             this.drawFallbackWallSlice(i, drawStart, lineHeight, brightness, rayResult.side);
                         }
+                        
+                        // If in debug mode, visualize this ray on the 2D map
+                        if (debugMode && i % 20 === 0) { // Only draw every 20th ray for performance
+                            this.visualizeRay(rayAngle, rayResult);
+                        }
                     } catch (e) {
                         // Ultimate fallback if anything goes wrong
                         console.error(`Rendering error for ray ${i}:`, e);
@@ -571,6 +665,9 @@ class RaycastingEngine {
             if (window.gameInstance && window.gameInstance.state.enemies) {
                 this.renderSprites(zBuffer, window.gameInstance.state.enemies);
             }
+            
+            // Render player's hand and weapon
+            this.renderPlayerHand();
             
             // Draw debug information
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
@@ -601,14 +698,305 @@ class RaycastingEngine {
     }
     
     /**
+     * Render a debug map overlay in the corner of the screen
+     */
+    renderDebugMap() {
+        if (!this.map) return;
+        
+        // Create a debug map in the bottom-right corner
+        const mapSize = 200;
+        const cellSize = mapSize / Math.max(this.map.width, this.map.height);
+        const mapX = this.canvas.width - mapSize - 20;
+        const mapY = this.canvas.height - mapSize - 20;
+        
+        // Save the current context state
+        this.ctx.save();
+        
+        // Draw background
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(mapX - 10, mapY - 10, mapSize + 20, mapSize + 20);
+        
+        // Draw title
+        this.ctx.fillStyle = '#ff0';
+        this.ctx.font = '12px monospace';
+        this.ctx.fillText('DEBUG MAP (2D View)', mapX, mapY - 15);
+        
+        // Draw map cells
+        for (let y = 0; y < this.map.height; y++) {
+            for (let x = 0; x < this.map.width; x++) {
+                const cell = this.map.layout[y][x];
+                
+                // Set color based on cell type
+                if (cell === 'W') {
+                    this.ctx.fillStyle = '#888'; // Wall
+                } else if (cell === 'D') {
+                    // Check if door is open
+                    const doorObj = this.map.objects['D'];
+                    if (doorObj && doorObj.open) {
+                        this.ctx.fillStyle = '#444'; // Open door
+                    } else {
+                        this.ctx.fillStyle = '#8b4513'; // Closed door
+                    }
+                } else if (cell === '.') {
+                    this.ctx.fillStyle = '#222'; // Floor
+                } else {
+                    // Special object
+                    const object = this.map.objects[cell];
+                    if (object) {
+                        if (object.type === 'enemy') {
+                            this.ctx.fillStyle = '#f00'; // Enemy
+                        } else if (object.type === 'chest') {
+                            this.ctx.fillStyle = '#fd0'; // Chest
+                        } else {
+                            this.ctx.fillStyle = '#0ff'; // Other objects
+                        }
+                    } else {
+                        this.ctx.fillStyle = '#222'; // Default floor
+                    }
+                }
+                
+                // Draw the cell
+                this.ctx.fillRect(
+                    mapX + x * cellSize, 
+                    mapY + y * cellSize, 
+                    cellSize, 
+                    cellSize
+                );
+            }
+        }
+        
+        // Draw player position
+        const playerMapX = mapX + this.player.x * cellSize;
+        const playerMapY = mapY + this.player.y * cellSize;
+        
+        // Draw player as a circle
+        this.ctx.fillStyle = '#0f0';
+        this.ctx.beginPath();
+        this.ctx.arc(playerMapX, playerMapY, cellSize / 2, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Restore the context state when done
+        this.ctx.restore();
+        
+        // Draw player direction
+        const dirX = Math.cos(this.player.angle) * cellSize * 2;
+        const dirY = Math.sin(this.player.angle) * cellSize * 2;
+        
+        this.ctx.strokeStyle = '#0f0';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(playerMapX, playerMapY);
+        this.ctx.lineTo(playerMapX + dirX, playerMapY + dirY);
+        this.ctx.stroke();
+        
+        // Draw field of view lines
+        const leftAngle = this.player.angle - this.fov / 2;
+        const rightAngle = this.player.angle + this.fov / 2;
+        
+        const leftDirX = Math.cos(leftAngle) * cellSize * 5;
+        const leftDirY = Math.sin(leftAngle) * cellSize * 5;
+        const rightDirX = Math.cos(rightAngle) * cellSize * 5;
+        const rightDirY = Math.sin(rightAngle) * cellSize * 5;
+        
+        this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+        this.ctx.lineWidth = 1;
+        
+        // Left FOV line
+        this.ctx.beginPath();
+        this.ctx.moveTo(playerMapX, playerMapY);
+        this.ctx.lineTo(playerMapX + leftDirX, playerMapY + leftDirY);
+        this.ctx.stroke();
+        
+        // Right FOV line
+        this.ctx.beginPath();
+        this.ctx.moveTo(playerMapX, playerMapY);
+        this.ctx.lineTo(playerMapX + rightDirX, playerMapY + rightDirY);
+        this.ctx.stroke();
+    }
+    
+    /**
+     * Visualize a ray on the debug map
+     * @param {number} angle - Angle of the ray
+     * @param {object} rayResult - Result of the ray cast
+     */
+    visualizeRay(angle, rayResult) {
+        if (!this.map || !rayResult) return;
+        
+        // Map position and size (must match renderDebugMap)
+        const mapSize = 200;
+        const cellSize = mapSize / Math.max(this.map.width, this.map.height);
+        const mapX = this.canvas.width - mapSize - 20;
+        const mapY = this.canvas.height - mapSize - 20;
+        
+        // Player position on debug map
+        const playerMapX = mapX + this.player.x * cellSize;
+        const playerMapY = mapY + this.player.y * cellSize;
+        
+        // Calculate ray end point
+        const rayEndX = mapX + rayResult.mapX * cellSize + cellSize / 2;
+        const rayEndY = mapY + rayResult.mapY * cellSize + cellSize / 2;
+        
+        // Draw the ray
+        this.ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(playerMapX, playerMapY);
+        this.ctx.lineTo(rayEndX, rayEndY);
+        this.ctx.stroke();
+        
+        // Draw a small dot at the hit point
+        this.ctx.fillStyle = '#ff0';
+        this.ctx.beginPath();
+        this.ctx.arc(rayEndX, rayEndY, 2, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+    
+    /**
+     * Render the player's hand and weapon
+     */
+    renderPlayerHand() {
+        try {
+            if (!this.sprites['player_hand']) {
+                console.warn('Player hand sprite not loaded');
+                return;
+            }
+            
+            const currentWeapon = window.gameInstance?.state?.currentWeapon || 'sword';
+            const isAttacking = window.gameInstance?.isAttacking || false;
+            
+            // Get canvas dimensions
+            const canvasWidth = this.canvas.width;
+            const canvasHeight = this.canvas.height;
+            
+            // Calculate hand position (bottom right of screen)
+            const handWidth = canvasWidth * 0.4; // 40% of screen width
+            const handHeight = handWidth * (this.sprites['player_hand'].height / this.sprites['player_hand'].width);
+            
+            // Add a bobbing effect based on time
+            const time = performance.now() / 1000;
+            const bobAmount = Math.sin(time * 2) * 5; // Subtle bobbing
+            
+            // Calculate attack animation
+            let handX = canvasWidth - handWidth;
+            let handY = canvasHeight - handHeight + bobAmount;
+            
+            // If attacking, animate the hand
+            if (isAttacking) {
+                // Get attack progress (0 to 1 over 500ms)
+                const attackProgress = (performance.now() % 500) / 500;
+                
+                if (attackProgress < 0.5) {
+                    // Forward swing (0 to 0.25 = swing forward, 0.25 to 0.5 = return)
+                    const swingProgress = attackProgress < 0.25 ? 
+                        attackProgress * 4 : // 0 to 1 during forward swing
+                        (0.5 - attackProgress) * 4; // 1 to 0 during return
+                    
+                    // Move hand forward and up during swing
+                    handX -= swingProgress * 50; // Move left
+                    handY -= swingProgress * 30; // Move up
+                    
+                    // Rotate the hand slightly
+                    this.ctx.save();
+                    this.ctx.translate(handX + handWidth/2, handY + handHeight/2);
+                    this.ctx.rotate(-swingProgress * Math.PI/6); // Rotate up to 30 degrees
+                    this.ctx.translate(-(handX + handWidth/2), -(handY + handHeight/2));
+                    
+                    // Draw the hand
+                    this.ctx.drawImage(
+                        this.sprites['player_hand'],
+                        handX,
+                        handY,
+                        handWidth,
+                        handHeight
+                    );
+                    
+                    this.ctx.restore();
+                    
+                    // Flash effect at the peak of the swing
+                    if (attackProgress < 0.15) {
+                        const flashIntensity = 0.5 * (1 - attackProgress / 0.15);
+                        this.ctx.fillStyle = `rgba(255, 255, 255, ${flashIntensity})`;
+                        this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                    }
+                    
+                    // Skip the normal hand drawing
+                    return;
+                }
+            }
+            
+            // Normal hand drawing (when not in attack animation)
+            this.ctx.drawImage(
+                this.sprites['player_hand'],
+                handX,
+                handY,
+                handWidth,
+                handHeight
+            );
+            
+            // Draw weapon if available
+            if (currentWeapon === 'sword') {
+                // Sword is part of the hand animation
+            } else if (currentWeapon === 'crossbow' && this.sprites['crossbow']) {
+                // Calculate crossbow position
+                const crossbowWidth = canvasWidth * 0.3;
+                const crossbowHeight = crossbowWidth * (this.sprites['crossbow'].height / this.sprites['crossbow'].width);
+                
+                // Position crossbow in hand
+                this.ctx.drawImage(
+                    this.sprites['crossbow'],
+                    canvasWidth - crossbowWidth - 20,
+                    canvasHeight - crossbowHeight - 30 + bobAmount,
+                    crossbowWidth,
+                    crossbowHeight
+                );
+            }
+        } catch (e) {
+            console.error('Error rendering player hand:', e);
+        }
+    }
+    
+    /**
      * Render sprites (enemies, items, etc.)
      * @param {Array} zBuffer - Array of wall distances for each screen column
      * @param {Array} sprites - Array of sprite objects to render
      */
     renderSprites(zBuffer, sprites) {
         try {
+            // Create an array of item sprites from the map
+            const itemSprites = [];
+            
+            // Scan the map for items (chests, keys, etc.)
+            if (this.map && this.map.layout) {
+                for (let y = 0; y < this.map.height; y++) {
+                    for (let x = 0; x < this.map.width; x++) {
+                        const cell = this.map.layout[y][x];
+                        
+                        // Skip walls and empty spaces
+                        if (cell === 'W' || cell === '.') continue;
+                        
+                        const object = this.map.objects[cell];
+                        if (object && (object.type === 'chest' || object.type === 'key')) {
+                            // Create a sprite object for the item
+                            const sprite = {
+                                type: object.type,
+                                x: x + 0.5, // Center of the cell
+                                y: y + 0.5, // Center of the cell
+                                opened: object.opened || false,
+                                contains: object.contains || null
+                            };
+                            
+                            itemSprites.push(sprite);
+                            console.log(`Added ${object.type} sprite at (${x}, ${y})`);
+                        }
+                    }
+                }
+            }
+            
+            // Combine enemy sprites and item sprites
+            const allSprites = [...sprites, ...itemSprites];
+            
             // Sort sprites by distance (furthest first for proper rendering)
-            const sortedSprites = [...sprites].sort((a, b) => {
+            const sortedSprites = [...allSprites].sort((a, b) => {
                 const distA = Math.pow(a.x - this.player.x, 2) + Math.pow(a.y - this.player.y, 2);
                 const distB = Math.pow(b.x - this.player.x, 2) + Math.pow(b.y - this.player.y, 2);
                 return distB - distA;
@@ -651,31 +1039,82 @@ class RaycastingEngine {
                 
                 // Only render if sprite is in front of the player
                 if (transformY > 0) {
-                    // Get the appropriate sprite image based on enemy type
+                    // Get the appropriate sprite image based on sprite type
                     let spriteImage;
-                    switch (sprite.type) {
-                        case 'skeleton':
-                            spriteImage = this.sprites['skeleton_idle'];
-                            break;
-                        case 'goblin':
-                            spriteImage = this.sprites['goblin_idle'];
-                            break;
-                        case 'wizard':
-                            spriteImage = this.sprites['dark_wizard_idle'];
-                            break;
-                        case 'boss':
-                            spriteImage = this.sprites['boss_idle'];
-                            break;
-                        default:
-                            spriteImage = null;
+                    
+                    if (sprite.type === 'chest') {
+                        spriteImage = sprite.opened ? 
+                            this.sprites['chest_open'] : 
+                            this.sprites['chest_closed'];
+                    } else if (sprite.type === 'key') {
+                        if (sprite.keyType === 'gold') {
+                            spriteImage = this.sprites['key_gold'];
+                        } else if (sprite.keyType === 'silver') {
+                            spriteImage = this.sprites['key_silver'];
+                        }
+                    } else {
+                        // Enemy sprites
+                        switch (sprite.type) {
+                            case 'skeleton':
+                                spriteImage = this.sprites['skeleton_idle'];
+                                break;
+                            case 'goblin':
+                                spriteImage = this.sprites['goblin_idle'];
+                                break;
+                            case 'wizard':
+                                spriteImage = this.sprites['dark_wizard_idle'];
+                                break;
+                            case 'boss':
+                                spriteImage = this.sprites['boss_idle'];
+                                break;
+                            default:
+                                spriteImage = null;
+                        }
                     }
                     
                     // If we have a valid sprite image, render it
                     if (spriteImage) {
                         // Loop through every vertical stripe of the sprite on screen
                         for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
-                            // Only render if in front of wall
+                            // Determine if we should render this sprite
+                            let shouldRender = false;
+                            
+                            // Always render if in front of wall
                             if (transformY < zBuffer[stripe]) {
+                                shouldRender = true;
+                            } 
+                            // Special case for chests: make them more visible when close to player
+                            else if (sprite.type === 'chest' && transformY < 3.0) {
+                                // Allow chest to be visible even if technically behind a wall
+                                // when player is very close to it (within 3.0 units)
+                                shouldRender = true;
+                                
+                                // Add a visual indicator for chests to make them more noticeable
+                                // Draw a pulsing glow around the chest
+                                const time = performance.now() / 1000; // Time in seconds
+                                const pulseIntensity = 0.2 + 0.1 * Math.sin(time * 2); // Pulsing between 0.2 and 0.3
+                                const glowSize = 5 + Math.sin(time * 3) * 2; // Pulsing size between 3 and 7
+                                
+                                // Gold color with pulsing transparency
+                                const glowColor = `rgba(255, 215, 0, ${pulseIntensity})`;
+                                this.ctx.fillStyle = glowColor;
+                                this.ctx.fillRect(
+                                    stripe - glowSize, 
+                                    drawStartY - glowSize, 
+                                    glowSize * 2 + 1, 
+                                    spriteHeight + glowSize * 2
+                                );
+                                
+                                // Add a hint text above the chest when very close (within 1.5 units)
+                                if (transformY < 1.5 && stripe === Math.floor(spriteScreenX)) {
+                                    this.ctx.fillStyle = 'white';
+                                    this.ctx.font = '12px Arial';
+                                    this.ctx.textAlign = 'center';
+                                    this.ctx.fillText('Press E to open', spriteScreenX, drawStartY - 10);
+                                }
+                            }
+                            
+                            if (shouldRender) {
                                 // Calculate texture X coordinate
                                 const texX = Math.floor(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * 64 / spriteWidth) / 256;
                                 
@@ -692,7 +1131,7 @@ class RaycastingEngine {
                         this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
                         this.ctx.fillRect(drawStartX, drawStartY, drawEndX - drawStartX, drawEndY - drawStartY);
                         
-                        // Draw enemy type text
+                        // Draw sprite type text
                         this.ctx.fillStyle = 'white';
                         this.ctx.font = '10px Arial';
                         this.ctx.textAlign = 'center';
@@ -964,7 +1403,7 @@ class RaycastingEngine {
         const rayResult = this.castRay(this.player.angle);
         
         // Check if the ray hit something interactive within range
-        if (rayResult.distance <= 2) {
+        if (rayResult.distance <= 2.5) { // Increased interaction range from 2 to 2.5
             const cell = this.map.layout[rayResult.mapY][rayResult.mapX];
             
             // Check if it's an interactive object
@@ -972,16 +1411,64 @@ class RaycastingEngine {
                 const object = this.map.objects[cell];
                 
                 if (object) {
+                    console.log(`Interacting with ${object.type} at position (${rayResult.mapX}, ${rayResult.mapY})`);
+                    
                     // Handle different types of objects
                     if (object.type === 'door') {
-                        object.open = !object.open;
+                        if (!object.locked) {
+                            object.open = !object.open;
+                            console.log(`Door ${object.open ? 'opened' : 'closed'}`);
+                        }
                         return object;
                     } else if (object.type === 'chest') {
                         object.opened = true;
+                        console.log(`Chest opened, contains: ${object.contains}`);
                         return object;
                     } else if (object.type === 'lever') {
                         object.activated = !object.activated;
+                        console.log(`Lever ${object.activated ? 'activated' : 'deactivated'}`);
                         return object;
+                    }
+                }
+            }
+        }
+        
+        // Check for objects in a wider radius (now also for interaction, not just debugging)
+        for (let y = -1; y <= 1; y++) {
+            for (let x = -1; x <= 1; x++) {
+                const checkX = Math.floor(this.player.x) + x;
+                const checkY = Math.floor(this.player.y) + y;
+                
+                // Skip out of bounds
+                if (checkX < 0 || checkX >= this.map.width || checkY < 0 || checkY >= this.map.height) {
+                    continue;
+                }
+                
+                const cell = this.map.layout[checkY][checkX];
+                
+                // Check if it's an interactive object
+                if (cell !== 'W' && cell !== '.') {
+                    const object = this.map.objects[cell];
+                    if (object) {
+                        console.log(`Nearby object: ${object.type} at (${checkX}, ${checkY}), distance: ${Math.sqrt(x*x + y*y)}`);
+                        
+                        // Allow interaction with nearby objects, especially chests
+                        if (object.type === 'chest') {
+                            console.log(`Interacting with nearby ${object.type} at position (${checkX}, ${checkY})`);
+                            object.opened = true;
+                            console.log(`Chest opened, contains: ${object.contains}`);
+                            return object;
+                        } else if (object.type === 'door' && !object.locked) {
+                            console.log(`Interacting with nearby ${object.type} at position (${checkX}, ${checkY})`);
+                            object.open = !object.open;
+                            console.log(`Door ${object.open ? 'opened' : 'closed'}`);
+                            return object;
+                        } else if (object.type === 'lever') {
+                            console.log(`Interacting with nearby ${object.type} at position (${checkX}, ${checkY})`);
+                            object.activated = !object.activated;
+                            console.log(`Lever ${object.activated ? 'activated' : 'deactivated'}`);
+                            return object;
+                        }
                     }
                 }
             }

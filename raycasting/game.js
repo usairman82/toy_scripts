@@ -68,12 +68,27 @@ class DungeonGame {
             locked: false
         };
         
+        // Debug state
+        this.debug = {
+            enabled: window.gameConfig?.debug?.enabled || false,
+            showMapObjects: window.gameConfig?.debug?.showMapObjects || false
+        };
+        
+        // Make the game instance globally accessible for the engine
+        window.gameInstance = this;
+        
         // UI elements
         this.healthBar = document.getElementById('health-bar');
         this.inventoryElement = document.getElementById('inventory');
         this.inventorySlotsElement = document.getElementById('inventory-slots');
         this.loadingScreen = document.getElementById('loading-screen');
         this.progressBar = document.querySelector('.progress-bar');
+        this.debugIndicator = document.getElementById('debug-indicator');
+        
+        // Initialize debug indicator based on initial debug state
+        if (this.debugIndicator) {
+            this.debugIndicator.style.display = this.debug.enabled ? 'block' : 'none';
+        }
         
         // Bind event handlers
         this.bindEvents();
@@ -159,7 +174,7 @@ class DungeonGame {
         this.minimapCanvas.style.right = '20px';
         this.minimapCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
         this.minimapCanvas.style.border = '2px solid #fff';
-        this.minimapCanvas.style.zIndex = '100';
+        this.minimapCanvas.style.zIndex = '1000'; // Increased z-index to ensure it's on top
         
         // Add to the game container
         document.getElementById('game-container').appendChild(this.minimapCanvas);
@@ -244,18 +259,25 @@ class DungeonGame {
         // Clear the minimap
         ctx.clearRect(0, 0, this.minimapCanvas.width, this.minimapCanvas.height);
         
-        // Draw the explored map
+        // Draw the map
         for (let y = 0; y < this.state.exploredMap.length; y++) {
             for (let x = 0; x < this.state.exploredMap[y].length; x++) {
-                // Skip unexplored areas
-                if (!this.state.exploredMap[y][x]) continue;
+                // Skip unexplored areas if not in debug mode
+                if (!this.debug.showMapObjects && !this.state.exploredMap[y][x]) continue;
                 
                 // Get the cell type
                 const cell = this.engine.map.layout[y][x];
                 
+                // Check if this is a secret wall
+                const isSecretWall = this.engine.isSecretWall(x, y);
+                
                 // Set color based on cell type
                 if (cell === 'W') {
-                    ctx.fillStyle = '#555'; // Wall
+                    if (this.debug.showMapObjects && isSecretWall) {
+                        ctx.fillStyle = '#00ff00'; // Green for secret walls in debug mode
+                    } else {
+                        ctx.fillStyle = '#555'; // Regular wall
+                    }
                 } else if (cell === 'D') {
                     ctx.fillStyle = '#8b4513'; // Door
                 } else {
@@ -264,6 +286,33 @@ class DungeonGame {
                 
                 // Draw the cell
                 ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                
+                // In debug mode, draw special markers for objects
+                if (this.debug.showMapObjects) {
+                    // Check if this cell contains a special object
+                    if (cell !== 'W' && cell !== '.') {
+                        const objectData = this.engine.map.objects[cell];
+                        if (objectData) {
+                            // Draw a marker based on object type
+                            if (objectData.type === 'door') {
+                                // Draw door marker (brown square with border)
+                                ctx.strokeStyle = '#fff';
+                                ctx.lineWidth = 1;
+                                ctx.strokeRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                            } else if (objectData.type === 'chest') {
+                                // Draw chest marker (gold square)
+                                ctx.fillStyle = '#ffd700';
+                                ctx.fillRect(x * cellSize + 2, y * cellSize + 2, cellSize - 4, cellSize - 4);
+                            } else if (objectData.type === 'enemy') {
+                                // Draw enemy marker (red circle)
+                                ctx.fillStyle = '#f00';
+                                ctx.beginPath();
+                                ctx.arc(x * cellSize + cellSize/2, y * cellSize + cellSize/2, cellSize/3, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                    }
+                }
             }
         }
         
@@ -288,16 +337,16 @@ class DungeonGame {
         ctx.lineTo(playerX + dirX, playerY + dirY);
         ctx.stroke();
         
-        // Draw enemies on minimap if they're in explored areas
+        // Draw enemies on minimap
         ctx.fillStyle = '#ff0';
         for (const enemy of this.state.enemies) {
             const enemyMapX = Math.floor(enemy.x);
             const enemyMapY = Math.floor(enemy.y);
             
-            // Only show enemies in explored areas
-            if (enemyMapX >= 0 && enemyMapX < this.state.exploredMap[0].length &&
-                enemyMapY >= 0 && enemyMapY < this.state.exploredMap.length &&
-                this.state.exploredMap[enemyMapY][enemyMapX]) {
+            // Only show enemies in explored areas or if in debug mode
+            if ((this.debug.showMapObjects || this.state.exploredMap[enemyMapY][enemyMapX]) &&
+                enemyMapX >= 0 && enemyMapX < this.state.exploredMap[0].length &&
+                enemyMapY >= 0 && enemyMapY < this.state.exploredMap.length) {
                 
                 const enemyX = enemy.x * cellSize;
                 const enemyY = enemy.y * cellSize;
@@ -307,6 +356,13 @@ class DungeonGame {
                 ctx.fill();
             }
         }
+        
+        // Add debug mode indicator
+        if (this.debug.showMapObjects) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = '10px monospace';
+            ctx.fillText('DEBUG MODE', 5, 10);
+        }
     }
     
     /**
@@ -315,8 +371,10 @@ class DungeonGame {
     renderDebugInfo() {
         // Display debug info in the top-left corner
         const ctx = this.engine.ctx;
+        
+        // Basic info panel
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(10, 10, 300, 100);
+        ctx.fillRect(10, 10, 300, 120);
         
         ctx.font = '12px monospace';
         ctx.fillStyle = '#fff';
@@ -331,6 +389,9 @@ class DungeonGame {
         // Weapon
         ctx.fillText(`Weapon: ${this.state.currentWeapon}`, 20, 90);
         
+        // Debug mode status
+        ctx.fillText(`Debug Mode: ${this.debug.enabled ? 'ON' : 'OFF'} (Toggle with ~ key)`, 20, 110);
+        
         // Enemies
         ctx.fillText(`Enemies: ${this.state.enemies.length}`, 200, 30);
         
@@ -340,6 +401,69 @@ class DungeonGame {
             ctx.fillText(`Attack: Space`, 200, 50);
             ctx.fillText(`Damage: ${weapon.damage}`, 200, 70);
             ctx.fillText(`Range: ${weapon.range}`, 200, 90);
+        }
+        
+        // Extended debug info when debug mode is enabled
+        if (this.debug.enabled) {
+            // Create a larger debug panel
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(10, 140, 400, 250);
+            
+            ctx.font = '12px monospace';
+            ctx.fillStyle = '#ff0';
+            ctx.fillText('EXTENDED DEBUG INFO', 20, 160);
+            
+            // Map info
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`Current Level: ${this.state.level}`, 20, 180);
+            ctx.fillText(`Map Size: ${this.engine.map?.width || 0} x ${this.engine.map?.height || 0}`, 20, 200);
+            
+            // Player cell position
+            const playerMapX = Math.floor(this.engine.player.x);
+            const playerMapY = Math.floor(this.engine.player.y);
+            ctx.fillText(`Grid Position: (${playerMapX}, ${playerMapY})`, 20, 220);
+            
+            // Current cell info
+            let cellType = 'Unknown';
+            if (this.engine.map && playerMapX >= 0 && playerMapX < this.engine.map.width && 
+                playerMapY >= 0 && playerMapY < this.engine.map.height) {
+                cellType = this.engine.map.layout[playerMapY][playerMapX];
+            }
+            ctx.fillText(`Current Cell: ${cellType}`, 20, 240);
+            
+            // FPS calculation
+            const now = performance.now();
+            const deltaTime = now - this.lastTime;
+            const fps = Math.round(1000 / deltaTime);
+            ctx.fillText(`FPS: ${fps}`, 20, 260);
+            
+            // Memory usage (if available)
+            if (window.performance && window.performance.memory) {
+                const memory = window.performance.memory;
+                const usedHeap = Math.round(memory.usedJSHeapSize / (1024 * 1024));
+                const totalHeap = Math.round(memory.totalJSHeapSize / (1024 * 1024));
+                ctx.fillText(`Memory: ${usedHeap}MB / ${totalHeap}MB`, 20, 280);
+            }
+            
+            // Enemy info
+            ctx.fillText('Enemy Information:', 20, 300);
+            let enemyY = 320;
+            for (let i = 0; i < Math.min(this.state.enemies.length, 3); i++) {
+                const enemy = this.state.enemies[i];
+                const dx = this.engine.player.x - enemy.x;
+                const dy = this.engine.player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                ctx.fillText(`Enemy ${i}: ${enemy.type}, HP: ${enemy.health}, Dist: ${distance.toFixed(2)}`, 20, enemyY);
+                enemyY += 20;
+            }
+            
+            // Render ray info
+            const rayAngle = this.engine.player.angle;
+            const rayResult = this.engine.castRay(rayAngle);
+            if (rayResult) {
+                ctx.fillText(`Looking at: (${rayResult.mapX}, ${rayResult.mapY}), Dist: ${rayResult.distance.toFixed(2)}`, 20, 380);
+            }
         }
     }
     
@@ -789,6 +913,19 @@ class DungeonGame {
             if (e.key === ' ') {
                 this.attack();
             }
+            
+            // Toggle debug mode with tilde key
+            if (e.key === '`' || e.key === '~') {
+                this.debug.enabled = !this.debug.enabled;
+                this.debug.showMapObjects = this.debug.enabled;
+                console.log(`Debug mode ${this.debug.enabled ? 'enabled' : 'disabled'}`);
+                
+                // Update debug indicator in UI
+                const debugIndicator = document.getElementById('debug-indicator');
+                if (debugIndicator) {
+                    debugIndicator.style.display = this.debug.enabled ? 'block' : 'none';
+                }
+            }
         });
         
         window.addEventListener('keyup', (e) => {
@@ -897,38 +1034,95 @@ class DungeonGame {
         const interactedObject = this.engine.interact();
         
         if (interactedObject) {
-            if (interactedObject.type === 'door' && interactedObject.locked) {
-                // Check if player has the key
-                const keyIndex = this.state.inventory.findIndex(item => 
-                    item.type === 'key' && item.keyType === interactedObject.keyType);
-                
-                if (keyIndex >= 0) {
-                    // Unlock the door
-                    interactedObject.locked = false;
-                    interactedObject.open = true;
+            if (interactedObject.type === 'door') {
+                if (interactedObject.locked) {
+                    // Check if player has the key
+                    const keyIndex = this.state.inventory.findIndex(item => 
+                        item.type === 'key' && item.keyType === interactedObject.keyType);
                     
-                    // Remove the key from inventory
-                    this.state.inventory.splice(keyIndex, 1);
-                    this.updateInventoryUI();
+                    if (keyIndex >= 0) {
+                        // Unlock the door
+                        interactedObject.locked = false;
+                        interactedObject.open = true;
+                        
+                        // Remove the key from inventory
+                        this.state.inventory.splice(keyIndex, 1);
+                        this.updateInventoryUI();
+                        
+                        // Play sound
+                        this.playSound('door_open');
+                        console.log('Door unlocked and opened!');
+                        
+                        // Check if this is the exit door to progress to next level
+                        this.checkLevelCompletion(interactedObject);
+                    } else {
+                        // Display message that door is locked
+                        console.log('This door is locked. You need a key.');
+                        alert('This door is locked. You need a key.');
+                    }
+                } else {
+                    // Toggle door open/closed
+                    interactedObject.open = !interactedObject.open;
                     
                     // Play sound
                     this.playSound('door_open');
-                } else {
-                    // Display message that door is locked
-                    console.log('This door is locked. You need a key.');
+                    console.log(`Door ${interactedObject.open ? 'opened' : 'closed'}!`);
+                    
+                    // Check if this is the exit door to progress to next level
+                    if (interactedObject.open) {
+                        this.checkLevelCompletion(interactedObject);
+                    }
                 }
-            } else if (interactedObject.type === 'chest' && !interactedObject.opened) {
+            } else if (interactedObject.type === 'chest') {
                 // Open chest and get loot
-                interactedObject.opened = true;
-                
-                if (interactedObject.contains) {
-                    // Add item to inventory
+                if (!interactedObject.opened) {
+                    interactedObject.opened = true;
+                    
+                    if (interactedObject.contains) {
+                        // Add item to inventory
+                        this.addItemToInventory(interactedObject.contains);
+                        
+                        // Play sound
+                        this.playSound('chest_open');
+                        
+                        // Display message about what was found
+                        const itemName = this.getItemDisplayName(interactedObject.contains);
+                        console.log(`You found: ${itemName}`);
+                        alert(`You found: ${itemName}. Press I to open inventory and click on the item to use it.`);
+                    }
+                } else if (interactedObject.contains) {
+                    // Store the item name before adding to inventory
+                    const itemName = this.getItemDisplayName(interactedObject.contains);
+                    
+                    // If chest is already open but still has an item, add it to inventory
                     this.addItemToInventory(interactedObject.contains);
                     
-                    // Play sound
-                    this.playSound('chest_open');
+                    // Clear the chest contents after taking the item
+                    interactedObject.contains = null;
+                    
+                    // Display message about what was found
+                    console.log(`You collected: ${itemName}`);
+                    alert(`You collected: ${itemName}. Press I to open inventory and click on the item to use it.`);
                 }
             }
+        } else {
+            console.log('Nothing to interact with here.');
+        }
+    }
+    
+    /**
+     * Get display name for an item
+     * @param {string} itemId - Item identifier
+     * @returns {string} - Display name for the item
+     */
+    getItemDisplayName(itemId) {
+        switch(itemId) {
+            case 'health_potion': return 'Health Potion';
+            case 'key_gold': return 'Gold Key';
+            case 'key_silver': return 'Silver Key';
+            case 'sword': return 'Sword';
+            case 'crossbow': return 'Crossbow';
+            default: return itemId;
         }
     }
     
@@ -971,6 +1165,14 @@ class DungeonGame {
         }
         
         console.log(`Attacking with ${this.state.currentWeapon}! Range: ${weapon.range}, Damage: ${weapon.damage}`);
+        
+        // Set attacking flag for animation
+        this.isAttacking = true;
+        
+        // Reset attack flag after animation completes
+        setTimeout(() => {
+            this.isAttacking = false;
+        }, 500); // 500ms attack animation
         
         // Play attack sound
         this.playSound(weapon.sound);
@@ -1201,6 +1403,78 @@ class DungeonGame {
             document.removeEventListener('click', clickHandler);
         };
         document.addEventListener('click', clickHandler);
+    }
+    
+    /**
+     * Check if the player has completed the level
+     * @param {object} door - The door object that was opened
+     */
+    checkLevelCompletion(door) {
+        // Get player position
+        const playerX = Math.floor(this.engine.player.x);
+        const playerY = Math.floor(this.engine.player.y);
+        
+        // Get door position by searching the map
+        let doorX = -1;
+        let doorY = -1;
+        
+        for (let y = 0; y < this.engine.map.height; y++) {
+            for (let x = 0; x < this.engine.map.width; x++) {
+                if (this.engine.map.layout[y][x] === 'D') {
+                    doorX = x;
+                    doorY = y;
+                    break;
+                }
+            }
+            if (doorX !== -1) break;
+        }
+        
+        // Check if player is near the door
+        const distanceToDoor = Math.sqrt(
+            Math.pow(playerX - doorX, 2) + 
+            Math.pow(playerY - doorY, 2)
+        );
+        
+        console.log(`Distance to door: ${distanceToDoor}`);
+        
+        // If player is near the door and it's open, progress to next level
+        if (distanceToDoor <= 2.5 && door.open) {
+            console.log("Level complete! Progressing to next level...");
+            
+            // Show level complete message
+            const levelCompleteElement = document.createElement('div');
+            levelCompleteElement.className = 'level-complete';
+            levelCompleteElement.style.position = 'absolute';
+            levelCompleteElement.style.top = '50%';
+            levelCompleteElement.style.left = '50%';
+            levelCompleteElement.style.transform = 'translate(-50%, -50%)';
+            levelCompleteElement.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            levelCompleteElement.style.color = '#fff';
+            levelCompleteElement.style.padding = '20px';
+            levelCompleteElement.style.borderRadius = '5px';
+            levelCompleteElement.style.zIndex = '1000';
+            levelCompleteElement.style.textAlign = 'center';
+            
+            // Determine next level
+            const nextLevel = this.state.level + 1;
+            
+            levelCompleteElement.innerHTML = `
+                <h2>Level ${this.state.level} Complete!</h2>
+                <p>You found the key and escaped through the door.</p>
+                <button id="next-level-button">Continue to Level ${nextLevel}</button>
+            `;
+            
+            document.body.appendChild(levelCompleteElement);
+            
+            // Add next level button handler
+            document.getElementById('next-level-button').addEventListener('click', () => {
+                // Remove level complete message
+                document.body.removeChild(levelCompleteElement);
+                
+                // Load the next level
+                this.loadLevel(nextLevel);
+            });
+        }
     }
     
     /**

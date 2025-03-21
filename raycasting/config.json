@@ -38,5 +38,9 @@
     "minDistance": 1.5,
     "maxDistance": 15.0,
     "randomSeed": 12345
+  },
+  "debug": {
+    "enabled": true,
+    "showMapObjects": true
   }
 }
