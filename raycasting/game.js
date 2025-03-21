@@ -181,135 +181,153 @@ class DungeonGame {
     }
     
     /**
-     * Game loop
-     * @param {number} timestamp - Current timestamp
+     * Update enemy positions
+     * @param {number} deltaTime - Time since last update in milliseconds
      */
-    gameLoop(timestamp) {
-        // Calculate delta time
-        const deltaTime = timestamp - this.lastTime;
-        this.lastTime = timestamp;
+    updateEnemies(deltaTime) {
+        if (!this.state.enemies || !this.engine) return;
         
-        // Skip if game is paused or loading
-        if (!this.state.paused && !this.state.loading && !this.state.gameOver) {
-            // Handle input
-            this.handleInput(deltaTime);
+        // Update each enemy
+        for (const enemy of this.state.enemies) {
+            // Skip if enemy is dead
+            if (enemy.health <= 0) continue;
             
-            // Update enemies
-            this.updateEnemies(deltaTime);
+            // Calculate distance to player
+            const distToPlayer = Math.sqrt(
+                Math.pow(this.engine.player.x - enemy.x, 2) + 
+                Math.pow(this.engine.player.y - enemy.y, 2)
+            );
             
-            // Update explored map for minimap
-            this.updateExploredMap();
-            
-            // Render the scene
-            this.engine.render();
-            
-            // Render minimap
-            this.renderMinimap();
-            
-            // Debug info
-            this.renderDebugInfo();
-            
-            // Auto-save every 30 seconds
-            if (Math.floor(timestamp / 30000) > Math.floor(this.lastTime / 30000)) {
-                this.saveGame();
-            }
-        }
-        
-        // Request next frame
-        requestAnimationFrame(this.gameLoop.bind(this));
-    }
-    
-    /**
-     * Update explored map based on player position
-     */
-    updateExploredMap() {
-        if (!this.state.exploredMap) return;
-        
-        // Get player's position in grid coordinates
-        const playerMapX = Math.floor(this.engine.player.x);
-        const playerMapY = Math.floor(this.engine.player.y);
-        
-        // Mark current position and surrounding cells as explored
-        const visibilityRadius = 3; // How far the player can "see" for the minimap
-        
-        for (let y = Math.max(0, playerMapY - visibilityRadius); y <= Math.min(this.state.exploredMap.length - 1, playerMapY + visibilityRadius); y++) {
-            for (let x = Math.max(0, playerMapX - visibilityRadius); x <= Math.min(this.state.exploredMap[0].length - 1, playerMapX + visibilityRadius); x++) {
-                // Calculate distance from player
-                const dx = x - playerMapX;
-                const dy = y - playerMapY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+            // Only move if player is within detection range
+            if (distToPlayer < enemy.detectionRange) {
+                // Calculate direction to player
+                const dirX = this.engine.player.x - enemy.x;
+                const dirY = this.engine.player.y - enemy.y;
+                const length = Math.sqrt(dirX * dirX + dirY * dirY);
                 
-                // Mark as explored if within visibility radius
-                if (distance <= visibilityRadius) {
-                    this.state.exploredMap[y][x] = true;
-                }
-            }
-        }
-    }
-    
-    /**
-     * Render the minimap
-     */
-    renderMinimap() {
-        if (!this.state.exploredMap || !this.minimapCanvas) return;
-        
-        const ctx = this.minimapCanvas.getContext('2d');
-        const cellSize = 8; // Size of each cell in the minimap
-        
-        // Clear the minimap
-        ctx.clearRect(0, 0, this.minimapCanvas.width, this.minimapCanvas.height);
-        
-        // Draw the map
-        for (let y = 0; y < this.state.exploredMap.length; y++) {
-            for (let x = 0; x < this.state.exploredMap[y].length; x++) {
-                // Skip unexplored areas if not in debug mode
-                if (!this.debug.showMapObjects && !this.state.exploredMap[y][x]) continue;
+                // Normalize direction
+                const normalizedDirX = dirX / length;
+                const normalizedDirY = dirY / length;
                 
-                // Get the cell type
-                const cell = this.engine.map.layout[y][x];
+                // Calculate new position with reduced speed
+                const speed = enemy.speed * (deltaTime / 1000) * 0.5; // Reduced speed by 50%
+                const newX = enemy.x + normalizedDirX * speed;
+                const newY = enemy.y + normalizedDirY * speed;
                 
-                // Check if this is a secret wall
-                const isSecretWall = this.engine.isSecretWall(x, y);
-                
-                // Set color based on cell type
-                if (cell === 'W') {
-                    if (this.debug.showMapObjects && isSecretWall) {
-                        ctx.fillStyle = '#ff0000'; // Red for secret walls in debug mode
-                    } else {
-                        ctx.fillStyle = '#555'; // Regular wall
-                    }
-                } else if (cell === 'D') {
-                    ctx.fillStyle = '#8b4513'; // Door
+                // Check if new position is valid (not inside a wall)
+                // First check combined movement
+                if (!this.engine.isWall(newX, newY)) {
+                    enemy.x = newX;
+                    enemy.y = newY;
                 } else {
-                    ctx.fillStyle = '#333'; // Floor
+                    // Try moving only in X direction
+                    if (!this.engine.isWall(newX, enemy.y)) {
+                        enemy.x = newX;
+                    }
+                    
+                    // Try moving only in Y direction
+                    if (!this.engine.isWall(enemy.x, newY)) {
+                        enemy.y = newY;
+                    }
                 }
                 
-                // Draw the cell
-                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                // Update enemy state
+                enemy.isChasing = true;
                 
-                // In debug mode, draw special markers for objects
-                if (this.debug.showMapObjects) {
-                    // Check if this cell contains a special object
-                    if (cell !== 'W' && cell !== '.') {
-                        const objectData = this.engine.map.objects[cell];
-                        if (objectData) {
-                            // Draw a marker based on object type
-                            if (objectData.type === 'door') {
-                                // Draw door marker (brown square with border)
-                                ctx.strokeStyle = '#fff';
-                                ctx.lineWidth = 1;
-                                ctx.strokeRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
-                            } else if (objectData.type === 'chest') {
-                                // Draw chest marker (gold square)
-                                ctx.fillStyle = '#ffd700';
-                                ctx.fillRect(x * cellSize + 2, y * cellSize + 2, cellSize - 4, cellSize - 4);
-                            } else if (objectData.type === 'enemy') {
-                                // Draw enemy marker (red circle)
-                                ctx.fillStyle = '#f00';
-                                ctx.beginPath();
-                                ctx.arc(x * cellSize + cellSize/2, y * cellSize + cellSize/2, cellSize/3, 0, Math.PI * 2);
-                                ctx.fill();
-                            }
+                // Attack player if close enough
+                if (distToPlayer < enemy.attackRange) {
+                    // Only attack if cooldown has elapsed
+                    if (Date.now() - enemy.lastAttackTime > enemy.attackCooldown) {
+                        this.playerTakeDamage(enemy.damage);
+                        enemy.lastAttackTime = Date.now();
+                        
+                        // Play enemy attack sound
+                        this.audio.playSound('enemy_growl', 0.5);
+                    }
+                }
+            } else {
+                // Not chasing player
+                enemy.isChasing = false;
+            }
+        }
+    }
+            }
+        }
+    }
+    
+    /**
+     * Attack with the current weapon
+     */
+    attack() {
+        // Check if attack is on cooldown
+        if (Date.now() - this.attackStartTime < this.attackCooldown) {
+            return;
+        }
+        
+        // Start attack animation
+        this.isAttacking = true;
+        this.attackStartTime = Date.now();
+        
+        // Play attack sound
+        this.audio.playSound('sword_swing', 0.5);
+        
+        // Check for enemies in attack range
+        if (this.state.enemies) {
+            for (const enemy of this.state.enemies) {
+                // Skip if enemy is already dead
+                if (enemy.health <= 0) continue;
+                
+                // Calculate distance to enemy
+                const distToEnemy = Math.sqrt(
+                    Math.pow(this.engine.player.x - enemy.x, 2) + 
+                    Math.pow(this.engine.player.y - enemy.y, 2)
+                );
+                
+                // Check if enemy is in attack range (increased range)
+                if (distToEnemy <= this.attackRange * 1.5) { // Increased attack range by 50%
+                    // Calculate angle to enemy
+                    const angleToEnemy = Math.atan2(
+                        enemy.y - this.engine.player.y,
+                        enemy.x - this.engine.player.x
+                    );
+                    
+                    // Normalize angles to 0-2π
+                    let playerAngle = this.engine.player.angle;
+                    while (playerAngle < 0) playerAngle += 2 * Math.PI;
+                    while (playerAngle >= 2 * Math.PI) playerAngle -= 2 * Math.PI;
+                    
+                    let normalizedAngleToEnemy = angleToEnemy;
+                    while (normalizedAngleToEnemy < 0) normalizedAngleToEnemy += 2 * Math.PI;
+                    while (normalizedAngleToEnemy >= 2 * Math.PI) normalizedAngleToEnemy -= 2 * Math.PI;
+                    
+                    // Calculate angle difference
+                    let angleDiff = Math.abs(playerAngle - normalizedAngleToEnemy);
+                    if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+                    
+                    // Check if enemy is in front of player (with wider field of view)
+                    if (angleDiff <= this.attackAngle) { // Doubled attack angle for easier hits
+                        // Hit the enemy
+                        enemy.health -= this.attackDamage;
+                        
+                        // Play hit sound
+                        this.audio.playSound('enemy_hit', 0.5);
+                        
+                        // Check if enemy is dead
+                        if (enemy.health <= 0) {
+                            // Play death sound
+                            this.audio.playSound('enemy_death', 0.5);
+                            
+                            // Add score
+                            this.state.score += 100;
+                            
+                            // Update UI
+                            this.updateUI();
+                        }
+                    }
+                }
+            }
+        }
+    }
                         }
                     }
                 }
@@ -338,7 +356,7 @@ class DungeonGame {
         ctx.stroke();
         
         // Draw enemies on minimap
-        ctx.fillStyle = '#ff0';
+        ctx.fillStyle = '#f00';
         for (const enemy of this.state.enemies) {
             const enemyMapX = Math.floor(enemy.x);
             const enemyMapY = Math.floor(enemy.y);
@@ -357,8 +375,42 @@ class DungeonGame {
             }
         }
         
-        // Add debug mode indicator
-        if (this.debug.showMapObjects) {
+        // Enhanced debug visualization (previously in separate debug map)
+        if (this.debug.enabled) {
+            // Add debug mode title
+            ctx.fillStyle = '#ff0';
+            ctx.font = '10px monospace';
+            ctx.fillText('DEBUG MAP', 5, 10);
+            
+            // Draw field of view lines
+            const leftAngle = this.engine.player.angle - this.engine.fov / 2;
+            const rightAngle = this.engine.player.angle + this.engine.fov / 2;
+            
+            const leftDirX = Math.cos(leftAngle) * cellSize * 5;
+            const leftDirY = Math.sin(leftAngle) * cellSize * 5;
+            const rightDirX = Math.cos(rightAngle) * cellSize * 5;
+            const rightDirY = Math.sin(rightAngle) * cellSize * 5;
+            
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.lineWidth = 1;
+            
+            // Left FOV line
+            ctx.beginPath();
+            ctx.moveTo(playerX, playerY);
+            ctx.lineTo(playerX + leftDirX, playerY + leftDirY);
+            ctx.stroke();
+            
+            // Right FOV line
+            ctx.beginPath();
+            ctx.moveTo(playerX, playerY);
+            ctx.lineTo(playerX + rightDirX, playerY + rightDirY);
+            ctx.stroke();
+            
+            // Add player coordinates
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.fillText(`X: ${this.engine.player.x.toFixed(1)} Y: ${this.engine.player.y.toFixed(1)}`, 5, 190);
+        } else if (this.debug.showMapObjects) {
+            // Just show basic debug mode indicator if only showMapObjects is enabled
             ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
             ctx.font = '10px monospace';
             ctx.fillText('DEBUG MODE', 5, 10);
@@ -749,12 +801,12 @@ class DungeonGame {
             for (let x = 0; x < levelData.width; x++) {
                 const cell = levelData.layout[y][x];
                 
-                // Check if the cell is an enemy
-                if (cell === 'S' || cell === 'G' || cell === 'W' || cell === 'B') {
+            // Check if the cell is an enemy
+            if (cell === 'S' || cell === 'G' || cell === 'Z' || cell === 'B') {
                     const objectData = levelData.objects[cell];
                     
                     if (objectData && objectData.type === 'enemy') {
-                        // Create enemy object
+                        // Create enemy object with random movement properties
                         const enemy = {
                             type: objectData.enemyType,
                             x: x + 0.5, // Center of the cell
@@ -765,7 +817,12 @@ class DungeonGame {
                             state: 'idle',
                             lastAttack: 0,
                             lastGrowl: 0, // Initialize lastGrowl for enemy growling
-                            texture: this.getEnemyTexture(objectData.enemyType) // Set the appropriate texture
+                            texture: this.getEnemyTexture(objectData.enemyType), // Set the appropriate texture
+                            // Random movement properties
+                            movementState: 'wandering', // 'wandering' or 'chasing'
+                            movementAngle: Math.random() * Math.PI * 2, // Random direction
+                            lastDirectionChange: 0, // Time of last direction change
+                            directionChangeInterval: 2000 + Math.random() * 3000 // Random interval between direction changes
                         };
                         
                         this.state.enemies.push(enemy);
@@ -812,11 +869,11 @@ class DungeonGame {
      */
     getEnemySpeed(type) {
         switch (type) {
-            case 'skeleton': return 0.02;
-            case 'goblin': return 0.04;
-            case 'wizard': return 0.01;
-            case 'boss': return 0.015;
-            default: return 0.02;
+            case 'skeleton': return 0.0025; // Reduced from 0.005
+            case 'goblin': return 0.004;    // Reduced from 0.008
+            case 'wizard': return 0.0015;   // Reduced from 0.003
+            case 'boss': return 0.002;      // Reduced from 0.004
+            default: return 0.0025;         // Reduced from 0.005
         }
     }
     
@@ -854,12 +911,11 @@ class DungeonGame {
             const dy = this.engine.player.y - enemy.y;
             const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
             
-            // Debug enemy distance
-            console.log(`Enemy ${i} (${enemy.type}) distance: ${distanceToPlayer.toFixed(2)}`);
-            
             // Enemy behavior based on distance
             if (distanceToPlayer < 1.5) {
                 // Enemy is close enough to attack
+                enemy.movementState = 'attacking';
+                
                 if (now - enemy.lastAttack > 1000) { // Attack once per second
                     // Attack player
                     this.state.health -= enemy.damage;
@@ -887,6 +943,8 @@ class DungeonGame {
                 }
             } else if (distanceToPlayer < 5) {
                 // Enemy is close enough to chase player
+                enemy.movementState = 'chasing';
+                
                 // Calculate direction to player
                 const angle = Math.atan2(dy, dx);
                 
@@ -896,12 +954,57 @@ class DungeonGame {
                 const newY = enemy.y + Math.sin(angle) * moveSpeed;
                 
                 // Check if new position is valid (not inside a wall)
+                // First check combined movement
+                if (!this.engine.isWall(newX, newY)) {
+                    enemy.x = newX;
+                    enemy.y = newY;
+                } else {
+                    // If combined movement fails, try X movement only
+                    if (!this.engine.isWall(newX, enemy.y)) {
+                        enemy.x = newX;
+                    }
+                    
+                    // Try Y movement only
+                    if (!this.engine.isWall(enemy.x, newY)) {
+                        enemy.y = newY;
+                    }
+                }
+            } else {
+                // Enemy is far from player, use random wandering behavior
+                enemy.movementState = 'wandering';
+                
+                // Check if it's time to change direction
+                if (now - enemy.lastDirectionChange > enemy.directionChangeInterval) {
+                    // Change to a random direction
+                    enemy.movementAngle = Math.random() * Math.PI * 2;
+                    enemy.lastDirectionChange = now;
+                    enemy.directionChangeInterval = 2000 + Math.random() * 3000; // 2-5 seconds
+                }
+                
+                // Move in the current direction
+                const moveSpeed = enemy.speed * 0.5 * deltaTime; // Move slower when wandering
+                const newX = enemy.x + Math.cos(enemy.movementAngle) * moveSpeed;
+                const newY = enemy.y + Math.sin(enemy.movementAngle) * moveSpeed;
+                
+                // Check if new position is valid (not inside a wall)
+                let hitWall = false;
+                
                 if (!this.engine.isWall(newX, enemy.y)) {
                     enemy.x = newX;
+                } else {
+                    hitWall = true;
                 }
                 
                 if (!this.engine.isWall(enemy.x, newY)) {
                     enemy.y = newY;
+                } else {
+                    hitWall = true;
+                }
+                
+                // If hit a wall, change direction immediately
+                if (hitWall) {
+                    enemy.movementAngle = (enemy.movementAngle + Math.PI + (Math.random() - 0.5)) % (Math.PI * 2);
+                    enemy.lastDirectionChange = now;
                 }
             }
         }
@@ -1192,8 +1295,9 @@ class DungeonGame {
         
         console.log(`Attacking with ${this.state.currentWeapon}! Range: ${weapon.range}, Damage: ${weapon.damage}`);
         
-        // Set attacking flag for animation
+        // Set attacking flag and start time for animation
         this.isAttacking = true;
+        this.attackStartTime = performance.now();
         
         // Reset attack flag after animation completes
         setTimeout(() => {
@@ -1224,8 +1328,8 @@ class DungeonGame {
                 while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                 while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
                 
-                // Check if enemy is in front of player (within 45 degrees)
-                if (Math.abs(angleDiff) <= Math.PI / 4) {
+                // Check if enemy is in front of player (within 60 degrees instead of 45)
+                if (Math.abs(angleDiff) <= Math.PI / 3) {
                     // Hit the enemy
                     enemy.health -= weapon.damage;
                     console.log(`Hit ${enemy.type} enemy! Dealt ${weapon.damage} damage. Enemy health: ${enemy.health}`);

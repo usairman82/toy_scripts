@@ -14,6 +14,97 @@ A first-person dungeon adventure game that runs entirely in the browser using Ja
 - **Save/Load**: Game progress saved to localStorage
 - **Fully Client-Side**: No server dependencies, perfect for static hosting
 
+## How Raycasting Works
+
+Raycasting is a rendering technique that creates a 3D-like view from a 2D map. It was popularized by games like Wolfenstein 3D and is perfect for first-person games that don't require true 3D environments.
+
+### Basic Concept
+
+At its core, raycasting works by:
+
+1. **Casting rays** from the player's position outward in the direction they're facing
+2. **Detecting collisions** between these rays and walls in the 2D map
+3. **Calculating distances** to determine how tall walls should appear
+4. **Rendering vertical strips** on the screen based on these distances
+
+The closer a wall is to the player, the taller it appears on screen, creating the illusion of 3D space.
+
+### The Raycasting Algorithm
+
+Here's how our raycasting engine works step by step:
+
+1. **Setup the view**: Define the player's field of view (FOV) and divide the screen width into equal vertical strips, with one ray per strip.
+
+2. **Cast rays**: For each vertical strip on the screen:
+   - Calculate the ray's angle based on the player's viewing angle and position in the FOV
+   - Use Digital Differential Analysis (DDA) to efficiently find where the ray intersects with a wall
+   - Track whether the ray hit a horizontal or vertical wall edge (for shading)
+   - Calculate the perpendicular distance to the wall to avoid fisheye effect
+
+3. **Render walls**: For each ray:
+   - Calculate wall height based on distance (closer walls appear taller)
+   - Determine which texture to use based on wall type
+   - Calculate which column of the texture to use based on where the ray hit the wall
+   - Apply distance-based shading to create depth
+   - Draw the textured wall strip on the screen
+
+4. **Floor and ceiling**: Render the floor and ceiling as solid colors or with textures.
+
+5. **Sprites**: After rendering walls, draw sprites (enemies, items) sorted by distance from the player.
+
+### Wall Rendering and Texture Mapping
+
+When a ray hits a wall, we:
+
+1. Calculate the exact position where the ray hit the wall
+2. Determine which texture to use (stone, brick, door, etc.)
+3. Calculate which column of the texture to use (textureX)
+4. Scale the texture column based on wall height
+5. Apply shading based on distance and whether it's a horizontal or vertical wall
+
+```javascript
+// Simplified example of texture mapping
+const wallHeight = (CELL_SIZE * canvas.height) / distance;
+const textureX = Math.floor(wallX * textureWidth);
+
+// For each pixel in the wall strip
+for (let y = 0; y < wallHeight; y++) {
+    const textureY = Math.floor((y / wallHeight) * textureHeight);
+    const color = getTexturePixel(texture, textureX, textureY);
+    
+    // Apply distance-based shading
+    const shadedColor = applyShading(color, distance);
+    
+    // Draw the pixel
+    drawPixel(x, drawStart + y, shadedColor);
+}
+```
+
+### Sprite Rendering
+
+Sprites (enemies, items) are rendered after the walls:
+
+1. Calculate sprite positions relative to the player
+2. Transform positions based on player's viewing angle
+3. Calculate sprite size based on distance
+4. Draw sprites from furthest to closest
+5. Only draw sprite pixels that aren't obscured by walls (using a z-buffer)
+
+### Advantages and Limitations
+
+**Advantages:**
+- Very efficient - can run smoothly even on low-powered devices
+- Simple to implement compared to full 3D engines
+- Perfect for grid-based, maze-like environments
+
+**Limitations:**
+- Walls must be perpendicular to the floor (no sloped surfaces)
+- Cannot look up or down (fixed horizon line)
+- Limited vertical movement (no jumping or crouching)
+- All walls must be the same height
+
+Despite these limitations, raycasting creates convincing 3D environments that are perfect for dungeon crawlers, maze games, and first-person shooters with grid-based level design.
+
 ## Technical Documentation
 
 This section provides detailed documentation of all objects, functions, and models in the game.

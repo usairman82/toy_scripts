@@ -20,8 +20,18 @@ class RaycastingEngine {
             x: 0,
             y: 0,
             angle: 0,
-            speed: 0.1,
+            speed: 0.03,
             rotationSpeed: 0.05
+        };
+        
+        // Animation state
+        this.animationState = {
+            walking: false,
+            attacking: false,
+            handOffset: 0,
+            lastStep: 0,
+            attackFrame: 0,
+            lastAttack: 0
         };
         
         // Constants
@@ -231,106 +241,111 @@ class RaycastingEngine {
     
     
     /**
-     * Set the current map
-     * @param {object} map - Map data
+     * Render the player's hand and weapon
      */
-    setMap(map) {
-        this.map = map;
-        if (map.playerStart) {
-            this.player.x = map.playerStart.x * this.CELL_SIZE + this.CELL_SIZE / 2;
-            this.player.y = map.playerStart.y * this.CELL_SIZE + this.CELL_SIZE / 2;
-        }
+    renderPlayerHand() {
+        // Get the hand sprite
+        const handSprite = this.sprites['player_hand'];
+        if (!handSprite) return;
         
-        // Initialize depth textures
-        this.initializeDepthTextures();
-    }
-    
-    /**
-     * Initialize depth textures for walls
-     */
-    initializeDepthTextures() {
-        // Get configuration from window.gameConfig
-        const config = window.gameConfig?.depthTextures || {
-            enabled: true,
-            density: 0.3,
-            minDistance: 1.5,
-            maxDistance: 15.0,
-            randomSeed: 12345
-        };
+        // Get current time for animations
+        const now = performance.now();
         
-        // Store configuration
-        this.depthTextureConfig = config;
+        // Calculate hand position and size
+        const handWidth = this.canvas.width * 0.4;
+        const handHeight = handWidth * (handSprite.height / handSprite.width);
+        const handX = this.canvas.width - handWidth;
+        let handY = this.canvas.height - handHeight;
         
-        // Initialize wall sections with depth textures
-        this.wallSectionsWithDepth = [];
-        
-        if (!this.map || !config.enabled) {
-            return;
-        }
-        
-        // Use a seeded random number generator for consistent results
-        let seed = config.randomSeed || 12345;
-        const random = () => {
-            const x = Math.sin(seed++) * 10000;
-            return x - Math.floor(x);
-        };
-        
-        // Get all wall cells in the map
-        const wallCells = [];
-        for (let y = 0; y < this.map.height; y++) {
-            for (let x = 0; x < this.map.width; x++) {
-                if (this.map.layout[y][x] === 'W') {
-                    wallCells.push({ x, y });
-                }
-            }
-        }
-        
-        // Get available depth texture names
-        const depthTextureNames = Object.keys(this.textures).filter(name => 
-            name === 'lit_torch' || 
-            name === 'moss_patch' || 
-            name === 'skull' || 
-            name === 'small_alcove_with_candle'
+        // Check if player is moving (walking animation)
+        const isMoving = window.gameInstance && (
+            window.gameInstance.keys['w'] || 
+            window.gameInstance.keys['a'] || 
+            window.gameInstance.keys['s'] || 
+            window.gameInstance.keys['d'] ||
+            window.gameInstance.keys['arrowup'] ||
+            window.gameInstance.keys['arrowleft'] ||
+            window.gameInstance.keys['arrowdown'] ||
+            window.gameInstance.keys['arrowright']
         );
         
-        if (depthTextureNames.length === 0) {
-            console.warn("No depth textures available for placement");
-            return;
+        // Check if player is attacking
+        const isAttacking = window.gameInstance && window.gameInstance.isAttacking;
+        
+        // Update animation state
+        if (isMoving && !isAttacking) {
+            // Walking animation
+            this.animationState.walking = true;
+            
+            // Bobbing effect for walking
+            const walkCycleSpeed = 400; // ms per cycle
+            const bobAmount = 10; // pixels
+            this.animationState.handOffset = Math.sin((now % walkCycleSpeed) / walkCycleSpeed * Math.PI * 2) * bobAmount;
+            
+            // Play footstep sound occasionally
+            if (now - this.animationState.lastStep > 400) { // Every 400ms
+                if (window.gameInstance && window.gameInstance.audio) {
+                    window.gameInstance.audio.playSound('steps', 0.3);
+                }
+                this.animationState.lastStep = now;
+            }
+        } else if (isAttacking) {
+            // Attack animation
+            this.animationState.walking = false;
+            this.animationState.attacking = true;
+            
+            // Attack animation timing
+            const attackDuration = 500; // ms
+            const attackProgress = Math.min(1, (now - window.gameInstance.attackStartTime) / attackDuration);
+            
+            // Attack animation curve (horizontal swing motion)
+            if (attackProgress < 0.5) {
+                // Swing right to left
+                this.animationState.handOffset = 0; // Maintain vertical position
+                // Apply horizontal swing transformation when drawing the hand
+                handX += 30 * Math.sin(attackProgress * Math.PI); // Horizontal swing motion
+                handY -= 10 * Math.sin(attackProgress * Math.PI); // Slight upward arc
+            } else {
+                // Return to original position
+                this.animationState.handOffset = 0;
+                handX += 30 * Math.sin(attackProgress * Math.PI); // Continue horizontal motion
+                handY -= 10 * Math.sin(attackProgress * Math.PI); // Continue arc
+            }
+            
+            // Reset attack state when animation completes
+            if (attackProgress >= 1) {
+                this.animationState.attacking = false;
+            }
+        } else {
+            // Idle animation - slight breathing movement
+            this.animationState.walking = false;
+            this.animationState.attacking = false;
+            const breathCycleSpeed = 3000; // ms per breath
+            const breathAmount = 3; // pixels
+            this.animationState.handOffset = Math.sin((now % breathCycleSpeed) / breathCycleSpeed * Math.PI * 2) * breathAmount;
         }
         
-        // Determine how many depth textures to place based on density
-        const numDepthTextures = Math.floor(wallCells.length * config.density);
+        // Apply animation offset to hand position
+        handY += this.animationState.handOffset;
         
-        // Randomly place depth textures on walls
-        for (let i = 0; i < numDepthTextures; i++) {
-            // Pick a random wall cell
-            const wallIndex = Math.floor(random() * wallCells.length);
-            const wall = wallCells[wallIndex];
+        // Draw the hand with animation
+        this.ctx.drawImage(handSprite, handX, handY, handWidth, handHeight);
+        
+        // Only render the crossbow if it's the current weapon
+        if (window.gameInstance && window.gameInstance.state.currentWeapon === 'crossbow') {
+            // Get the weapon sprite
+            const weaponSprite = this.sprites['crossbow'];
+            if (!weaponSprite) return;
             
-            // Pick a random depth texture
-            const textureName = depthTextureNames[Math.floor(random() * depthTextureNames.length)];
+            // Calculate weapon position and size
+            const weaponWidth = this.canvas.width * 0.3;
+            const weaponHeight = weaponWidth * (weaponSprite.height / weaponSprite.width);
+            const weaponX = this.canvas.width / 2 - weaponWidth / 2;
+            const weaponY = this.canvas.height - weaponHeight + this.animationState.handOffset;
             
-            // Determine which side of the wall to place the texture on (0-3 for N, E, S, W)
-            const side = Math.floor(random() * 4);
-            
-            // Random position along the wall (0.0 to 1.0)
-            const position = random();
-            
-            // Random scale factor (0.5 to 1.5)
-            const scale = 0.5 + random();
-            
-            // Add to wall sections with depth
-            this.wallSectionsWithDepth.push({
-                x: wall.x,
-                y: wall.y,
-                side,
-                position,
-                textureName,
-                scale
-            });
+            // Draw the weapon
+            this.ctx.drawImage(weaponSprite, weaponX, weaponY, weaponWidth, weaponHeight);
         }
-        
-        console.log(`Generated ${this.wallSectionsWithDepth.length} wall sections with depth textures`);
     }
     
     
@@ -341,19 +356,44 @@ class RaycastingEngine {
      * @returns {boolean} - True if the position is inside a wall
      */
     isWall(x, y) {
+        // Check for NaN values which can cause teleporting
+        if (isNaN(x) || isNaN(y) || x === undefined || y === undefined) {
+            console.warn("Invalid position check: x or y is NaN or undefined");
+            return true; // Treat as wall to prevent movement
+        }
+        
+        // Check if map is valid
+        if (!this.map) {
+            console.warn("Map is not loaded, treating all positions as walls");
+            return true;
+        }
+        
         const mapX = Math.floor(x / this.CELL_SIZE);
         const mapY = Math.floor(y / this.CELL_SIZE);
         
+        // Check bounds
         if (mapX < 0 || mapX >= this.map.width || mapY < 0 || mapY >= this.map.height) {
             return true; // Out of bounds is considered a wall
         }
         
+        // Check if layout is valid
+        if (!this.map.layout || !Array.isArray(this.map.layout) || !this.map.layout[mapY]) {
+            console.warn("Map layout is invalid when checking position", x, y);
+            return true; // Treat as wall to prevent movement
+        }
+        
         const cell = this.map.layout[mapY][mapX];
+        
+        // If cell is undefined or null, treat as a wall
+        if (cell === undefined || cell === null) {
+            console.warn(`Invalid cell at position (${mapX}, ${mapY})`);
+            return true;
+        }
         
         // If it's a door, check if it's open
         if (cell === 'D') {
             // Get the door object from the map objects
-            const doorObj = this.map.objects['D'];
+            const doorObj = this.map.objects && this.map.objects['D'];
             
             // Door is a wall if it exists and is not open
             if (doorObj && !doorObj.open) {
@@ -421,73 +461,97 @@ class RaycastingEngine {
     }
     
     /**
-     * Check if a wall is a secret wall
-     * @param {number} mapX - X coordinate in the map
-     * @param {number} mapY - Y coordinate in the map
-     * @returns {boolean} - True if the wall is a secret wall
+     * Render sprites (enemies, items, etc.)
+     * @param {Array} zBuffer - Array of wall distances for depth testing
+     * @param {Array} sprites - Array of sprites to render
      */
-    isSecretWall(mapX, mapY) {
-        // Check if the cell is a wall
-        if (mapX < 0 || mapX >= this.map.width || mapY < 0 || mapY >= this.map.height) {
-            return false;
-        }
-        
-        const cell = this.map.layout[mapY][mapX];
-        
-        if (cell !== 'W') {
-            return false;
-        }
-        
-        // Check if this wall has a secret door marker in the map objects
-        // This is a simple implementation - in a real game, you might have a more complex way to identify secret walls
-        // For now, we'll check if there's a 'secret' property in the map objects for this position
-        const secretKey = `secret_${mapX}_${mapY}`;
-        
-        // Debug log to help diagnose secret wall detection - but only log occasionally to prevent console spam
-        if (window.gameInstance && window.gameInstance.debug.enabled && Math.random() < 0.01) {
-            console.log(`Checking for secret wall at (${mapX}, ${mapY}), key: ${secretKey}, exists: ${Boolean(this.map.objects && this.map.objects[secretKey])}`);
-        }
-        
-        return this.map.objects && this.map.objects[secretKey];
-    }
-    
-    /**
-     * Create a red-tinted version of an existing texture
-     * @param {string} sourceTextureName - Name of the source texture
-     * @param {string} targetTextureName - Name for the new red-tinted texture
-     */
-    createRedTintedTexture(sourceTextureName, targetTextureName) {
-        // Get the source texture
-        const sourceTexture = this.textures[sourceTextureName];
-        if (!sourceTexture) {
-            console.warn(`Source texture ${sourceTextureName} not found for red tinting`);
-            return;
-        }
-        
-        // Set the offscreen canvas dimensions to match the source texture
-        this.offscreenCanvas.width = sourceTexture.width || 64;
-        this.offscreenCanvas.height = sourceTexture.height || 64;
-        
-        // Draw the source texture to the offscreen canvas
-        this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
-        this.offscreenCtx.drawImage(sourceTexture, 0, 0);
-        
-        try {
-            // Get the image data
-            const imageData = this.offscreenCtx.getImageData(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
-            const data = imageData.data;
-            
-            // Tint the image data red (increase red channel, decrease others)
-            for (let i = 0; i < data.length; i += 4) {
-                // Keep alpha channel as is
-                if (data[i + 3] > 0) {
-                    // Boost red channel
-                    data[i] = Math.min(255, data[i] * 1.5);
-                    // Reduce green and blue channels
-                    data[i + 1] = Math.floor(data[i + 1] * 0.5);
-                    data[i + 2] = Math.floor(data[i + 2] * 0.5);
+    renderSprites(zBuffer, sprites) {
+        // Get chest objects from the map
+        const chestObjects = [];
+        if (this.map && this.map.layout) {
+            for (let y = 0; y < this.map.height; y++) {
+                for (let x = 0; x < this.map.width; x++) {
+                    const cell = this.map.layout[y][x];
+                    if (cell === 'C' || cell === 'P') { // Chest markers from level data
+                        const chestData = this.map.objects[cell];
+                        if (chestData && chestData.type === 'chest') {
+                            // Create a sprite-like object for the chest
+                            chestObjects.push({
+                                x: x + 0.5, // Center of the cell
+                                y: y + 0.5, // Center of the cell
+                                texture: chestData.opened ? 'chest_open' : 'chest_closed'
+                            });
+                        }
+                    }
                 }
             }
+        }
+        
+        // Combine enemy sprites and chest objects
+        const allSprites = [...sprites, ...chestObjects];
+        
+        // Sort sprites by distance (furthest first for proper rendering)
+        const sortedSprites = [...allSprites].sort((a, b) => {
+            const distA = Math.pow(this.player.x - a.x, 2) + Math.pow(this.player.y - a.y, 2);
+            const distB = Math.pow(this.player.x - b.x, 2) + Math.pow(this.player.y - b.y, 2);
+            return distB - distA;
+        });
+        
+        // Render each sprite
+        for (const sprite of sortedSprites) {
+            // Calculate sprite position relative to the player
+            const spriteX = sprite.x - this.player.x;
+            const spriteY = sprite.y - this.player.y;
+            
+            // Transform sprite with the inverse camera matrix
+            const invDet = 1.0 / (Math.cos(this.player.angle) * Math.sin(this.player.angle + Math.PI / 2) - 
+                                 Math.sin(this.player.angle) * Math.cos(this.player.angle + Math.PI / 2));
+            
+            const transformX = invDet * (Math.sin(this.player.angle + Math.PI / 2) * spriteX - Math.cos(this.player.angle + Math.PI / 2) * spriteY);
+            const transformY = invDet * (-Math.sin(this.player.angle) * spriteX + Math.cos(this.player.angle) * spriteY);
+            
+            // Calculate sprite screen position
+            const spriteScreenX = Math.floor((this.canvas.width / 2) * (1 + transformX / transformY));
+            
+            // Calculate sprite height and width on screen
+            const spriteHeight = Math.abs(Math.floor(this.canvas.height / transformY));
+            const spriteWidth = spriteHeight; // Assuming square sprites
+            
+            // Calculate drawing boundaries
+            const drawStartY = Math.floor(this.halfHeight - spriteHeight / 2);
+            const drawEndY = Math.floor(this.halfHeight + spriteHeight / 2);
+            const drawStartX = Math.floor(spriteScreenX - spriteWidth / 2);
+            const drawEndX = Math.floor(spriteScreenX + spriteWidth / 2);
+            
+            // Get the sprite texture
+            const spriteTexture = this.sprites[sprite.texture];
+            
+            // Only render if the sprite is in front of the camera and on screen
+            if (transformY > 0 && spriteScreenX > 0 && spriteScreenX < this.canvas.width) {
+                // Draw the sprite
+                for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
+                    // Check if the stripe is visible and in front of walls
+                    if (stripe >= 0 && stripe < this.canvas.width && transformY < zBuffer[stripe]) {
+                        // Calculate texture X coordinate
+                        const texX = Math.floor(256 * (stripe - drawStartX) / spriteWidth) / 256 * (spriteTexture ? spriteTexture.width : 64);
+                        
+                        // Draw the sprite stripe
+                        if (spriteTexture) {
+                            this.ctx.drawImage(
+                                spriteTexture,
+                                texX, 0, 1, spriteTexture.height,
+                                stripe, drawStartY, 1, drawEndY - drawStartY
+                            );
+                        } else {
+                            // Fallback if texture is missing
+                            this.ctx.fillStyle = '#f00';
+                            this.ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
+                        }
+                    }
+                }
+            }
+        }
+    }
             
             // Put the modified image data back
             this.offscreenCtx.putImageData(imageData, 0, 0);
@@ -727,427 +791,3 @@ class RaycastingEngine {
                     }
                 } catch (rayError) {
                     console.error(`Error processing ray ${i}:`, rayError);
-                    // Continue with the next ray
-                }
-            }
-            
-            // Render sprites (enemies, items, etc.)
-            if (window.gameInstance && window.gameInstance.state.enemies) {
-                this.renderSprites(zBuffer, window.gameInstance.state.enemies);
-            }
-            
-            // Render player's hand and weapon
-            this.renderPlayerHand();
-            
-            // Draw debug information
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            this.ctx.font = '12px monospace';
-            this.ctx.fillText('Render frame complete', 10, this.canvas.height - 30);
-            
-            // Display depth texture information if enabled
-            if (this.depthTextureConfig?.enabled) {
-                this.ctx.fillText(`Depth textures: ${this.depthTexturesRendered || 0} rendered / ${this.wallSectionsWithDepth?.length || 0} total`, 
-                    10, this.canvas.height - 10);
-                
-                // Reset the counter for the next frame
-                this.depthTexturesRendered = 0;
-            }
-            
-            // If in debug mode, render the debug map
-            if (debugMode) {
-                this.renderDebugMap();
-            }
-            
-        } catch (e) {
-            console.error('Critical rendering error:', e);
-            
-            // Draw a simple error message on the screen
-            try {
-                this.ctx.fillStyle = '#f00';
-                this.ctx.font = '16px Arial';
-                this.ctx.fillText('Rendering Error: ' + e.message, 20, 50);
-            } catch (finalError) {
-                console.error('Failed to display error message:', finalError);
-            }
-        }
-    }
-    
-    /**
-     * Draw a textured wall slice
-     * @param {number} x - X coordinate on the screen
-     * @param {number} drawStart - Y coordinate to start drawing
-     * @param {number} lineHeight - Height of the wall slice
-     * @param {number} brightness - Brightness factor (0-1)
-     * @param {number} side - Wall side (0 for x-side, 1 for y-side)
-     * @param {string} textureName - Name of the texture to use
-     * @param {number} textureX - X coordinate in the texture
-     */
-    drawTexturedWallSlice(x, drawStart, lineHeight, brightness, side, textureName, textureX) {
-        // Get the texture data
-        const textureData = this.textureData[textureName];
-        if (!textureData) return;
-        
-        // Apply side-dependent shading
-        const shadeFactor = side === 1 ? 0.7 : 1.0;
-        
-        // Create an image data object for the wall slice
-        const sliceHeight = Math.ceil(lineHeight);
-        const imageData = this.ctx.createImageData(1, sliceHeight);
-        const data = imageData.data;
-        
-        // Draw the wall slice pixel by pixel
-        for (let y = 0; y < sliceHeight; y++) {
-            // Calculate y coordinate in the texture
-            const textureY = Math.floor((y / lineHeight) * textureData.height);
-            
-            // Get the pixel from the texture
-            const texelIndex = (textureY * textureData.width + textureX) * 4;
-            
-            // Apply brightness and side-dependent shading
-            const r = textureData.data[texelIndex] * brightness * shadeFactor;
-            const g = textureData.data[texelIndex + 1] * brightness * shadeFactor;
-            const b = textureData.data[texelIndex + 2] * brightness * shadeFactor;
-            const a = textureData.data[texelIndex + 3];
-            
-            // Set the pixel in the wall slice
-            const pixelIndex = y * 4;
-            data[pixelIndex] = r;
-            data[pixelIndex + 1] = g;
-            data[pixelIndex + 2] = b;
-            data[pixelIndex + 3] = a;
-        }
-        
-        // Draw the wall slice on the canvas
-        this.ctx.putImageData(imageData, x, drawStart);
-    }
-    
-    /**
-     * Draw a fallback wall slice with solid color
-     * @param {number} x - X coordinate on the screen
-     * @param {number} drawStart - Y coordinate to start drawing
-     * @param {number} lineHeight - Height of the wall slice
-     * @param {number} brightness - Brightness factor (0-1)
-     * @param {number} side - Wall side (0 for x-side, 1 for y-side)
-     */
-    drawFallbackWallSlice(x, drawStart, lineHeight, brightness, side) {
-        // Apply side-dependent shading
-        const shadeFactor = side === 1 ? 0.7 : 1.0;
-        
-        // Calculate color based on brightness and side
-        const color = Math.floor(255 * brightness * shadeFactor);
-        
-        // Draw a solid color wall slice
-        this.ctx.fillStyle = `rgb(${color}, ${color}, ${color})`;
-        this.ctx.fillRect(x, drawStart, 1, lineHeight);
-    }
-    
-    /**
-     * Render sprites (enemies, items, etc.)
-     * @param {Array} zBuffer - Array of wall distances for depth testing
-     * @param {Array} sprites - Array of sprites to render
-     */
-    renderSprites(zBuffer, sprites) {
-        // Sort sprites by distance (furthest first for proper rendering)
-        const sortedSprites = [...sprites].sort((a, b) => {
-            const distA = Math.pow(this.player.x - a.x, 2) + Math.pow(this.player.y - a.y, 2);
-            const distB = Math.pow(this.player.x - b.x, 2) + Math.pow(this.player.y - b.y, 2);
-            return distB - distA;
-        });
-        
-        // Render each sprite
-        for (const sprite of sortedSprites) {
-            // Calculate sprite position relative to the player
-            const spriteX = sprite.x - this.player.x;
-            const spriteY = sprite.y - this.player.y;
-            
-            // Transform sprite with the inverse camera matrix
-            const invDet = 1.0 / (Math.cos(this.player.angle) * Math.sin(this.player.angle + Math.PI / 2) - 
-                                 Math.sin(this.player.angle) * Math.cos(this.player.angle + Math.PI / 2));
-            
-            const transformX = invDet * (Math.sin(this.player.angle + Math.PI / 2) * spriteX - Math.cos(this.player.angle + Math.PI / 2) * spriteY);
-            const transformY = invDet * (-Math.sin(this.player.angle) * spriteX + Math.cos(this.player.angle) * spriteY);
-            
-            // Calculate sprite screen position
-            const spriteScreenX = Math.floor((this.canvas.width / 2) * (1 + transformX / transformY));
-            
-            // Calculate sprite height and width on screen
-            const spriteHeight = Math.abs(Math.floor(this.canvas.height / transformY));
-            const spriteWidth = spriteHeight; // Assuming square sprites
-            
-            // Calculate drawing boundaries
-            const drawStartY = Math.floor(this.halfHeight - spriteHeight / 2);
-            const drawEndY = Math.floor(this.halfHeight + spriteHeight / 2);
-            const drawStartX = Math.floor(spriteScreenX - spriteWidth / 2);
-            const drawEndX = Math.floor(spriteScreenX + spriteWidth / 2);
-            
-            // Get the sprite texture
-            const spriteTexture = this.sprites[sprite.texture];
-            
-            // Only render if the sprite is in front of the camera and on screen
-            if (transformY > 0 && spriteScreenX > 0 && spriteScreenX < this.canvas.width) {
-                // Draw the sprite
-                for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
-                    // Check if the stripe is visible and in front of walls
-                    if (stripe >= 0 && stripe < this.canvas.width && transformY < zBuffer[stripe]) {
-                        // Calculate texture X coordinate
-                        const texX = Math.floor(256 * (stripe - drawStartX) / spriteWidth) / 256 * spriteTexture.width;
-                        
-                        // Draw the sprite stripe
-                        if (spriteTexture) {
-                            this.ctx.drawImage(
-                                spriteTexture,
-                                texX, 0, 1, spriteTexture.height,
-                                stripe, drawStartY, 1, drawEndY - drawStartY
-                            );
-                        } else {
-                            // Fallback if texture is missing
-                            this.ctx.fillStyle = '#f00';
-                            this.ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    /**
-     * Render the player's hand and weapon
-     */
-    renderPlayerHand() {
-        // Get the hand sprite
-        const handSprite = this.sprites['player_hand'];
-        if (!handSprite) return;
-        
-        // Calculate hand position and size
-        const handWidth = this.canvas.width * 0.4;
-        const handHeight = handWidth * (handSprite.height / handSprite.width);
-        const handX = this.canvas.width - handWidth;
-        const handY = this.canvas.height - handHeight;
-        
-        // Draw the hand
-        this.ctx.drawImage(handSprite, handX, handY, handWidth, handHeight);
-        
-        // Only render the crossbow if it's the current weapon
-        if (window.gameInstance && window.gameInstance.state.currentWeapon === 'crossbow') {
-            // Get the weapon sprite
-            const weaponSprite = this.sprites['crossbow'];
-            if (!weaponSprite) return;
-            
-            // Calculate weapon position and size
-            const weaponWidth = this.canvas.width * 0.3;
-            const weaponHeight = weaponWidth * (weaponSprite.height / weaponSprite.width);
-            const weaponX = this.canvas.width / 2 - weaponWidth / 2;
-            const weaponY = this.canvas.height - weaponHeight;
-            
-            // Draw the weapon
-            this.ctx.drawImage(weaponSprite, weaponX, weaponY, weaponWidth, weaponHeight);
-        }
-    }
-    
-    /**
-     * Render a debug map overlay in the corner of the screen
-     */
-    renderDebugMap() {
-        if (!this.map) return;
-        
-        // Check if debug mode is enabled
-        const debugEnabled = window.gameInstance?.debug?.enabled || false;
-        
-        // If debug mode is disabled, remove any existing debug map canvas
-        if (!debugEnabled) {
-            const existingCanvas = document.getElementById('debug-map-canvas');
-            if (existingCanvas) {
-                existingCanvas.remove();
-            }
-            return;
-        }
-        
-        // Create a debug map in the top-right corner (same level as minimap)
-        const mapSize = 150; // Reduced size from 200 to 150
-        const cellSize = mapSize / Math.max(this.map.width, this.map.height);
-        
-        // Handle the debug map canvas
-        let debugMapCanvas = document.getElementById('debug-map-canvas');
-        
-        // Create the debug map canvas if it doesn't exist
-        if (!debugMapCanvas) {
-            debugMapCanvas = document.createElement('canvas');
-            debugMapCanvas.id = 'debug-map-canvas';
-            debugMapCanvas.width = mapSize + 20;
-            debugMapCanvas.height = mapSize + 20;
-            debugMapCanvas.style.position = 'absolute';
-            debugMapCanvas.style.top = '20px';
-            debugMapCanvas.style.right = '20px';
-            debugMapCanvas.style.zIndex = '1001'; // Just above minimap (1000) but below other UI
-            debugMapCanvas.style.pointerEvents = 'none'; // Important: Allow clicks to pass through
-            debugMapCanvas.style.opacity = '0.8'; // Make it slightly transparent
-            
-            // Add to the game container
-            const gameContainer = document.getElementById('game-container');
-            if (gameContainer) {
-                gameContainer.appendChild(debugMapCanvas);
-            } else {
-                console.warn('Game container not found, cannot add debug map canvas');
-                return;
-            }
-        }
-        
-        // Get the debug map canvas context
-        const debugCtx = debugMapCanvas.getContext('2d');
-        
-        // Clear the debug map canvas
-        debugCtx.clearRect(0, 0, debugMapCanvas.width, debugMapCanvas.height);
-        
-        // Draw background
-        debugCtx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // More transparent background
-        debugCtx.fillRect(0, 0, mapSize + 20, mapSize + 20);
-        
-        // Draw title
-        debugCtx.fillStyle = '#ff0';
-        debugCtx.font = '10px monospace'; // Smaller font
-        debugCtx.fillText('DEBUG MAP', 10, 15);
-        
-        // Draw map cells
-        for (let y = 0; y < this.map.height; y++) {
-            for (let x = 0; x < this.map.width; x++) {
-                const cell = this.map.layout[y][x];
-                
-                // Set color based on cell type
-                if (cell === 'W') {
-                    // Check if this is a secret wall
-                    const isSecretWall = this.isSecretWall(x, y);
-                    if (isSecretWall) {
-                        debugCtx.fillStyle = '#ff0000'; // Red for secret walls
-                    } else {
-                        debugCtx.fillStyle = '#888'; // Regular wall
-                    }
-                } else if (cell === 'D') {
-                    // Check if door is open
-                    const doorObj = this.map.objects['D'];
-                    if (doorObj && doorObj.open) {
-                        debugCtx.fillStyle = '#444'; // Open door
-                    } else {
-                        debugCtx.fillStyle = '#8b4513'; // Closed door
-                    }
-                } else if (cell === '.') {
-                    debugCtx.fillStyle = '#222'; // Floor
-                } else {
-                    // Special object
-                    const object = this.map.objects[cell];
-                    if (object) {
-                        if (object.type === 'enemy') {
-                            debugCtx.fillStyle = '#f00'; // Enemy
-                        } else if (object.type === 'chest') {
-                            debugCtx.fillStyle = '#fd0'; // Chest
-                        } else {
-                            debugCtx.fillStyle = '#0ff'; // Other objects
-                        }
-                    } else {
-                        debugCtx.fillStyle = '#222'; // Default floor
-                    }
-                }
-                
-                // Draw the cell
-                debugCtx.fillRect(
-                    10 + x * cellSize, 
-                    20 + y * cellSize, 
-                    cellSize, 
-                    cellSize
-                );
-            }
-        }
-        
-        // Draw player position
-        const playerMapX = 10 + this.player.x * cellSize;
-        const playerMapY = 20 + this.player.y * cellSize;
-        
-        // Draw player as a circle
-        debugCtx.fillStyle = '#0f0';
-        debugCtx.beginPath();
-        debugCtx.arc(playerMapX, playerMapY, cellSize / 2, 0, Math.PI * 2);
-        debugCtx.fill();
-        
-        // Draw player direction
-        const dirX = Math.cos(this.player.angle) * cellSize * 2;
-        const dirY = Math.sin(this.player.angle) * cellSize * 2;
-        
-        debugCtx.strokeStyle = '#0f0';
-        debugCtx.lineWidth = 2;
-        debugCtx.beginPath();
-        debugCtx.moveTo(playerMapX, playerMapY);
-        debugCtx.lineTo(playerMapX + dirX, playerMapY + dirY);
-        debugCtx.stroke();
-        
-        // Draw field of view lines
-        const leftAngle = this.player.angle - this.fov / 2;
-        const rightAngle = this.player.angle + this.fov / 2;
-        
-        const leftDirX = Math.cos(leftAngle) * cellSize * 5;
-        const leftDirY = Math.sin(leftAngle) * cellSize * 5;
-        const rightDirX = Math.cos(rightAngle) * cellSize * 5;
-        const rightDirY = Math.sin(rightAngle) * cellSize * 5;
-        
-        debugCtx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-        debugCtx.lineWidth = 1;
-        
-        // Left FOV line
-        debugCtx.beginPath();
-        debugCtx.moveTo(playerMapX, playerMapY);
-        debugCtx.lineTo(playerMapX + leftDirX, playerMapY + leftDirY);
-        debugCtx.stroke();
-        
-        // Right FOV line
-        debugCtx.beginPath();
-        debugCtx.moveTo(playerMapX, playerMapY);
-        debugCtx.lineTo(playerMapX + rightDirX, playerMapY + rightDirY);
-        debugCtx.stroke();
-    }
-    
-    /**
-     * Visualize a ray on the debug map
-     * @param {number} angle - Angle of the ray
-     * @param {object} rayResult - Result of the ray cast
-     */
-    visualizeRay(angle, rayResult) {
-        if (!this.map || !rayResult) return;
-        
-        // Check if debug mode is enabled
-        const debugEnabled = window.gameInstance?.debug?.enabled || false;
-        if (!debugEnabled) return;
-        
-        // Get the debug map canvas
-        const debugMapCanvas = document.getElementById('debug-map-canvas');
-        if (!debugMapCanvas) return;
-        
-        const debugCtx = debugMapCanvas.getContext('2d');
-        
-        // Use a smaller map size to match the renderDebugMap function
-        const mapSize = 150;
-        const cellSize = mapSize / Math.max(this.map.width, this.map.height);
-        
-        // Player position on debug map
-        const playerMapX = 10 + this.player.x * cellSize;
-        const playerMapY = 20 + this.player.y * cellSize;
-        
-        // Calculate ray end point
-        const rayEndX = 10 + rayResult.mapX * cellSize + cellSize / 2;
-        const rayEndY = 20 + rayResult.mapY * cellSize + cellSize / 2;
-        
-        // Draw the ray
-        debugCtx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
-        debugCtx.lineWidth = 1;
-        debugCtx.beginPath();
-        debugCtx.moveTo(playerMapX, playerMapY);
-        debugCtx.lineTo(rayEndX, rayEndY);
-        debugCtx.stroke();
-        
-        // Draw a small dot at the hit point
-        debugCtx.fillStyle = '#ff0';
-        debugCtx.beginPath();
-        debugCtx.arc(rayEndX, rayEndY, 2, 0, Math.PI * 2);
-        debugCtx.fill();
-    }
-}
-
-// Export the engine
-window.RaycastingEngine = RaycastingEngine;
