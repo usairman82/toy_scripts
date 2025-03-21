@@ -185,6 +185,10 @@
                 await loadScript('game.js');
                 console.log('Game.js loaded and executed');
                 
+                // Load debug fix script
+                await loadScript('debug_fix.js');
+                console.log('Debug fix script loaded and executed');
+                
                 // Initialize game
                 console.log('Initializing game');
                 try {

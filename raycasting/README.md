@@ -14,6 +14,286 @@ A first-person dungeon adventure game that runs entirely in the browser using Ja
 - **Save/Load**: Game progress saved to localStorage
 - **Fully Client-Side**: No server dependencies, perfect for static hosting
 
+## Technical Documentation
+
+This section provides detailed documentation of all objects, functions, and models in the game.
+
+### Core Classes
+
+#### RaycastingEngine
+
+The `RaycastingEngine` class handles 3D rendering of a 2D grid-based map using raycasting techniques.
+
+**Constructor**
+```javascript
+constructor(canvas, fov = 75)
+```
+- `canvas`: The HTML canvas element to render to
+- `fov`: Field of view in degrees (default: 75)
+
+**Properties**
+- `canvas`: The HTML canvas element
+- `ctx`: The 2D rendering context
+- `fov`: Field of view in radians
+- `textures`: Object containing loaded texture images
+- `sprites`: Object containing loaded sprite images
+- `textureData`: Cache for processed texture data
+- `map`: Current map data
+- `player`: Player object with position, angle, and movement properties
+- `CELL_SIZE`: Size of each cell in the grid (1)
+- `WALL_HEIGHT`: Height of walls (1)
+- `MAX_DISTANCE`: Maximum rendering distance (20)
+- `offscreenCanvas`: Canvas used for texture processing
+- `offscreenCtx`: Context for the offscreen canvas
+- `halfHeight`: Half the height of the canvas
+- `numRays`: Number of rays to cast (equal to canvas width)
+- `rayAngleStep`: Angle between each ray
+- `depthTextureConfig`: Configuration for depth textures
+- `wallSectionsWithDepth`: Array of wall sections with depth textures
+
+**Methods**
+
+*Core Rendering*
+- `resize()`: Resize the canvas to match the window size
+- `render()`: Render the scene
+- `castRay(angle)`: Cast a single ray and calculate the distance to the nearest wall
+- `drawTexturedWallSlice(x, drawStart, lineHeight, brightness, side, textureName, textureX)`: Draw a textured wall slice
+- `drawFallbackWallSlice(x, drawStart, lineHeight, brightness, side)`: Draw a fallback wall slice with solid color
+- `renderSprites(zBuffer, sprites)`: Render sprites (enemies, items, etc.)
+- `renderPlayerHand()`: Render the player's hand and weapon
+- `renderDebugMap()`: Render a debug map overlay in the corner of the screen
+- `visualizeRay(angle, rayResult)`: Visualize a ray on the debug map
+
+*Asset Management*
+- `loadTexture(name, url)`: Load a texture from a URL
+- `processTextureData(name, img)`: Process texture data for faster rendering
+- `createFallbackTextureData(name)`: Create fallback texture data
+- `loadSprite(name, url)`: Load a sprite from a URL
+
+*Map Interaction*
+- `setMap(map)`: Set the current map
+- `initializeDepthTextures()`: Initialize depth textures for walls
+- `isWall(x, y)`: Check if a position is inside a wall
+- `getWallTexture(x, y)`: Get the texture for a wall at the given position
+- `isSecretWall(mapX, mapY)`: Check if a wall is a secret wall
+
+*Debug Utilities*
+- `createRedTintedTexture(sourceTextureName, targetTextureName)`: Create a red-tinted version of an existing texture
+- `createRedTexture()`: Create a red texture for debug mode
+
+#### DungeonGame
+
+The `DungeonGame` class handles the main game logic, including input, game state, and mechanics.
+
+**Constructor**
+```javascript
+constructor()
+```
+
+**Properties**
+- `canvas`: The HTML canvas element
+- `engine`: Instance of RaycastingEngine
+- `audio`: Instance of AudioManager
+- `state`: Game state object containing health, inventory, enemies, etc.
+- `keys`: Object tracking keyboard input
+- `mouse`: Object tracking mouse position and lock state
+- `debug`: Debug state object
+- `healthBar`: Health bar UI element
+- `inventoryElement`: Inventory UI element
+- `inventorySlotsElement`: Inventory slots UI element
+- `loadingScreen`: Loading screen UI element
+- `progressBar`: Progress bar UI element
+- `debugIndicator`: Debug indicator UI element
+- `minimapCanvas`: Canvas for the minimap
+
+**Methods**
+
+*Initialization and Game Loop*
+- `init()`: Initialize the game
+- `createMinimapCanvas()`: Create minimap canvas
+- `gameLoop(timestamp)`: Game loop
+- `loadConfig()`: Load game configuration from config.json
+- `loadAssets()`: Load game assets
+- `loadLevel(levelNumber)`: Load a level
+- `createFallbackLevel()`: Create a fallback level if level loading fails
+
+*Player and Enemy Management*
+- `handleInput(deltaTime)`: Handle player input
+- `initializeEnemies(levelData)`: Initialize enemies from level data
+- `updateEnemies(deltaTime)`: Update enemies
+- `getEnemyHealth(type)`: Get enemy health based on type
+- `getEnemyDamage(type)`: Get enemy damage based on type
+- `getEnemySpeed(type)`: Get enemy speed based on type
+- `getEnemyTexture(type)`: Get enemy texture based on type
+
+*UI and Rendering*
+- `updateExploredMap()`: Update explored map based on player position
+- `renderMinimap()`: Render the minimap
+- `renderDebugInfo()`: Render debug information
+- `updateHealthBar()`: Update health bar UI
+- `showInGameMessage(message, duration)`: Display an in-game message to the player
+- `showError(message)`: Display an error message to the user
+
+*Game Mechanics*
+- `interact()`: Interact with objects in front of the player
+- `attack()`: Attack with the current weapon
+- `getWeaponData(weaponName)`: Get weapon data
+- `playSound(soundName)`: Play a sound
+- `toggleInventory()`: Toggle inventory visibility
+- `updateInventoryUI()`: Update inventory UI
+- `useItem(index)`: Use or equip an item
+- `getItemDisplayName(itemId)`: Get display name for an item
+- `addItemToInventory(itemId)`: Add an item to the player's inventory
+- `checkLevelCompletion(door)`: Check if the player has completed the level
+- `gameOver()`: Game over handler
+
+*Save/Load*
+- `saveGame()`: Save game state to localStorage
+- `loadGame()`: Load game state from localStorage
+
+*Event Handling*
+- `bindEvents()`: Bind event handlers
+
+#### AudioManager
+
+The `AudioManager` class handles loading, playing, and managing audio assets.
+
+**Constructor**
+```javascript
+constructor()
+```
+
+**Properties**
+- `audioContext`: Web Audio API context
+- `sounds`: Object containing loaded sound effects
+- `music`: Object containing loaded music tracks
+- `currentMusic`: Currently playing music track
+- `settings`: Audio settings (volumes, mute state)
+- `atmosphericSounds`: Array of atmospheric sound names
+- `atmosphericTimer`: Timer for playing random atmospheric sounds
+- `masterGain`: Master gain node
+- `musicGain`: Music gain node
+- `sfxGain`: Sound effects gain node
+
+**Methods**
+
+*Initialization*
+- `initAudioContext()`: Initialize the audio context
+- `resumeAudioContext()`: Resume audio context (needed for browsers that suspend it until user interaction)
+
+*Asset Loading*
+- `loadSound(name, url)`: Load a sound effect
+- `loadMusic(name, url)`: Load background music
+
+*Playback Control*
+- `playSound(name, volume)`: Play a sound effect
+- `playMusic(name, fadeIn, fadeTime)`: Play background music
+- `stopMusic(fadeOut, fadeTime)`: Stop background music
+- `pauseAll()`: Pause all audio
+- `resumeAll()`: Resume all audio
+
+*Volume Control*
+- `setMasterVolume(volume)`: Set master volume
+- `setMusicVolume(volume)`: Set music volume
+- `setSfxVolume(volume)`: Set sound effects volume
+- `toggleMute()`: Toggle mute
+- `setMuted(muted)`: Set mute state
+
+*Atmospheric Sounds*
+- `startAtmosphericSoundsTimer()`: Start the atmospheric sounds timer
+- `stopAtmosphericSoundsTimer()`: Stop the atmospheric sounds timer
+- `playRandomAtmosphericSound()`: Play a random atmospheric sound at a lower volume
+
+### Game Objects
+
+#### Player
+
+The player object is stored in the `engine.player` property.
+
+**Properties**
+- `x`: X coordinate in the map
+- `y`: Y coordinate in the map
+- `angle`: Viewing angle in radians
+- `speed`: Movement speed
+- `rotationSpeed`: Rotation speed
+
+#### Enemy
+
+Enemies are stored in the `state.enemies` array.
+
+**Properties**
+- `type`: Enemy type (skeleton, goblin, wizard, boss)
+- `x`: X coordinate in the map
+- `y`: Y coordinate in the map
+- `health`: Current health
+- `damage`: Damage dealt to player
+- `speed`: Movement speed
+- `state`: Current state (idle, attacking)
+- `lastAttack`: Timestamp of last attack
+- `lastGrowl`: Timestamp of last growl
+- `texture`: Texture name for the enemy
+
+#### Map
+
+Maps are loaded from JSON files in the `assets/maps` directory.
+
+**Properties**
+- `width`: Width of the map in cells
+- `height`: Height of the map in cells
+- `layout`: 2D array of cells representing the map layout
+- `objects`: Object containing definitions for special objects in the map
+- `playerStart`: Starting position for the player
+
+**Cell Types**
+- `W`: Wall
+- `.`: Empty space
+- `D`: Door
+- `S`: Skeleton enemy
+- `G`: Goblin enemy
+- `W`: Wizard enemy
+- `B`: Boss enemy
+- `C`: Chest
+- `P`: Potion
+
+#### Item
+
+Items are stored in the player's inventory.
+
+**Types**
+- `weapon`: Weapons that can be equipped
+- `potion`: Consumable items that restore health
+- `key`: Keys used to unlock doors
+
+**Weapon Properties**
+- `type`: "weapon"
+- `damage`: Damage dealt to enemies
+- `range`: Attack range
+- `name`: Display name
+
+**Potion Properties**
+- `type`: "potion"
+- `effect`: Effect type (health)
+- `value`: Amount of health restored
+- `name`: Display name
+
+**Key Properties**
+- `type`: "key"
+- `keyType`: Key type (gold, silver)
+- `name`: Display name
+
+### Game Configuration
+
+The game configuration is stored in `config.json`.
+
+**Properties**
+- `game`: Basic game information (title, version)
+- `display`: Display settings (width, height, fullscreen, fov)
+- `audio`: Audio settings (volumes, ambient sounds)
+- `controls`: Control settings (sensitivity, key bindings)
+- `gameplay`: Gameplay settings (difficulty, enemy density, loot density)
+- `depthTextures`: Depth texture settings (enabled, density, distances)
+- `debug`: Debug settings (enabled, show map objects)
+
 ## Getting Started
 
 ### Prerequisites

@@ -764,7 +764,8 @@ class DungeonGame {
                             speed: this.getEnemySpeed(objectData.enemyType),
                             state: 'idle',
                             lastAttack: 0,
-                            lastGrowl: 0 // Initialize lastGrowl for enemy growling
+                            lastGrowl: 0, // Initialize lastGrowl for enemy growling
+                            texture: this.getEnemyTexture(objectData.enemyType) // Set the appropriate texture
                         };
                         
                         this.state.enemies.push(enemy);
@@ -816,6 +817,21 @@ class DungeonGame {
             case 'wizard': return 0.01;
             case 'boss': return 0.015;
             default: return 0.02;
+        }
+    }
+    
+    /**
+     * Get enemy texture based on type
+     * @param {string} type - Enemy type
+     * @returns {string} - Texture name for the enemy
+     */
+    getEnemyTexture(type) {
+        switch (type) {
+            case 'skeleton': return 'skeleton_idle';
+            case 'goblin': return 'goblin_idle';
+            case 'wizard': return 'dark_wizard_idle';
+            case 'boss': return 'boss_idle';
+            default: return 'skeleton_idle'; // Fallback to skeleton if type is unknown
         }
     }
     
