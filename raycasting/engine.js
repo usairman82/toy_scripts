@@ -386,22 +386,34 @@ class RaycastingEngine {
         // Check if this is a secret wall
         const isSecretWall = this.isSecretWall(mapX, mapY);
         
-        // If debug mode is enabled and this is a secret wall, return red texture
-        if (window.gameInstance && window.gameInstance.debug.enabled && isSecretWall) {
-            // Create a red texture if it doesn't exist
-            if (!this.textures['debug_red']) {
-                this.createRedTexture();
-            }
-            return 'debug_red';
-        }
-        
         if (cell === 'W') {
-            // If it's a secret wall, return secret wall texture
+            // If it's a secret wall
             if (isSecretWall) {
+                // If debug mode is enabled, create a red-tinted version of the secret wall texture
+                if (window.gameInstance && window.gameInstance.debug.enabled) {
+                    // Create a red-tinted version of the secret wall texture if it doesn't exist
+                    const redSecretTextureName = 'secret_wall_red';
+                    if (!this.textures[redSecretTextureName]) {
+                        this.createRedTintedTexture('secret_wall', redSecretTextureName);
+                    }
+                    return redSecretTextureName;
+                }
                 return 'secret_wall';
             }
             return 'stone_wall';
         } else if (cell === 'D') {
+            // If it's a door and it's a secret door (rare case but possible)
+            if (isSecretWall) {
+                // If debug mode is enabled, create a red-tinted version of the door texture
+                if (window.gameInstance && window.gameInstance.debug.enabled) {
+                    const doorTexture = this.map.objects[cell]?.open ? 'door_open' : 'door_closed';
+                    const redDoorTextureName = doorTexture + '_red';
+                    if (!this.textures[redDoorTextureName]) {
+                        this.createRedTintedTexture(doorTexture, redDoorTextureName);
+                    }
+                    return redDoorTextureName;
+                }
+            }
             return this.map.objects[cell]?.open ? 'door_open' : 'door_closed';
         }
         
@@ -434,7 +446,64 @@ class RaycastingEngine {
     }
     
     /**
-     * Create a red texture for debug mode
+     * Create a red-tinted version of an existing texture
+     * @param {string} sourceTextureName - Name of the source texture
+     * @param {string} targetTextureName - Name for the new red-tinted texture
+     */
+    createRedTintedTexture(sourceTextureName, targetTextureName) {
+        // Get the source texture
+        const sourceTexture = this.textures[sourceTextureName];
+        if (!sourceTexture) {
+            console.warn(`Source texture ${sourceTextureName} not found for red tinting`);
+            return;
+        }
+        
+        // Set the offscreen canvas dimensions to match the source texture
+        this.offscreenCanvas.width = sourceTexture.width || 64;
+        this.offscreenCanvas.height = sourceTexture.height || 64;
+        
+        // Draw the source texture to the offscreen canvas
+        this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+        this.offscreenCtx.drawImage(sourceTexture, 0, 0);
+        
+        try {
+            // Get the image data
+            const imageData = this.offscreenCtx.getImageData(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+            const data = imageData.data;
+            
+            // Tint the image data red (increase red channel, decrease others)
+            for (let i = 0; i < data.length; i += 4) {
+                // Keep alpha channel as is
+                if (data[i + 3] > 0) {
+                    // Boost red channel
+                    data[i] = Math.min(255, data[i] * 1.5);
+                    // Reduce green and blue channels
+                    data[i + 1] = Math.floor(data[i + 1] * 0.5);
+                    data[i + 2] = Math.floor(data[i + 2] * 0.5);
+                }
+            }
+            
+            // Put the modified image data back
+            this.offscreenCtx.putImageData(imageData, 0, 0);
+            
+            // Create a new image from the canvas
+            const img = new Image();
+            img.src = this.offscreenCanvas.toDataURL();
+            
+            // Store the texture
+            this.textures[targetTextureName] = img;
+            
+            // Process the texture data
+            this.processTextureData(targetTextureName, img);
+            
+            console.log(`Created red-tinted texture: ${targetTextureName} from ${sourceTextureName}`);
+        } catch (e) {
+            console.error(`Error creating red-tinted texture: ${e.message}`);
+        }
+    }
+    
+    /**
+     * Create a red texture for debug mode (legacy method, kept for compatibility)
      */
     createRedTexture() {
         // Create a red texture for debug mode
@@ -703,11 +772,11 @@ class RaycastingEngine {
     renderDebugMap() {
         if (!this.map) return;
         
-        // Create a debug map in the bottom-right corner
+        // Create a debug map in the top-right corner (same level as minimap)
         const mapSize = 200;
         const cellSize = mapSize / Math.max(this.map.width, this.map.height);
         const mapX = this.canvas.width - mapSize - 20;
-        const mapY = this.canvas.height - mapSize - 20;
+        const mapY = 20; // Position at the top like the minimap
         
         // Save the current context state
         this.ctx.save();
@@ -728,7 +797,13 @@ class RaycastingEngine {
                 
                 // Set color based on cell type
                 if (cell === 'W') {
-                    this.ctx.fillStyle = '#888'; // Wall
+                    // Check if this is a secret wall
+                    const isSecretWall = this.isSecretWall(x, y);
+                    if (isSecretWall) {
+                        this.ctx.fillStyle = '#ff0000'; // Red for secret walls
+                    } else {
+                        this.ctx.fillStyle = '#888'; // Regular wall
+                    }
                 } else if (cell === 'D') {
                     // Check if door is open
                     const doorObj = this.map.objects['D'];
@@ -826,7 +901,7 @@ class RaycastingEngine {
         const mapSize = 200;
         const cellSize = mapSize / Math.max(this.map.width, this.map.height);
         const mapX = this.canvas.width - mapSize - 20;
-        const mapY = this.canvas.height - mapSize - 20;
+        const mapY = 20; // Match the new position at the top
         
         // Player position on debug map
         const playerMapX = mapX + this.player.x * cellSize;

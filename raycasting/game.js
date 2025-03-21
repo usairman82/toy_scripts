@@ -274,7 +274,7 @@ class DungeonGame {
                 // Set color based on cell type
                 if (cell === 'W') {
                     if (this.debug.showMapObjects && isSecretWall) {
-                        ctx.fillStyle = '#00ff00'; // Green for secret walls in debug mode
+                        ctx.fillStyle = '#ff0000'; // Red for secret walls in debug mode
                     } else {
                         ctx.fillStyle = '#555'; // Regular wall
                     }
@@ -911,7 +911,17 @@ class DungeonGame {
             
             // Attack
             if (e.key === ' ') {
-                this.attack();
+                // If level complete screen is showing, use spacebar to advance to next level
+                const levelCompleteElement = document.querySelector('.level-complete');
+                if (levelCompleteElement) {
+                    const nextLevelButton = document.getElementById('next-level-button');
+                    if (nextLevelButton) {
+                        nextLevelButton.click();
+                        return;
+                    }
+                } else {
+                    this.attack();
+                }
             }
             
             // Toggle debug mode with tilde key
@@ -1085,10 +1095,10 @@ class DungeonGame {
                         // Play sound
                         this.playSound('chest_open');
                         
-                        // Display message about what was found
+                        // Display message about what was found in-game
                         const itemName = this.getItemDisplayName(interactedObject.contains);
                         console.log(`You found: ${itemName}`);
-                        alert(`You found: ${itemName}. Press I to open inventory and click on the item to use it.`);
+                        this.showInGameMessage(`You found: ${itemName}`, 3000);
                     }
                 } else if (interactedObject.contains) {
                     // Store the item name before adding to inventory
@@ -1100,9 +1110,9 @@ class DungeonGame {
                     // Clear the chest contents after taking the item
                     interactedObject.contains = null;
                     
-                    // Display message about what was found
+                    // Display message about what was found in-game
                     console.log(`You collected: ${itemName}`);
-                    alert(`You collected: ${itemName}. Press I to open inventory and click on the item to use it.`);
+                    this.showInGameMessage(`You collected: ${itemName}`, 3000);
                 }
             }
         } else {
@@ -1362,6 +1372,49 @@ class DungeonGame {
                 this.engine.rotatePlayer(0.05);
             }
         }
+    }
+    
+    /**
+     * Display an in-game message to the player
+     * @param {string} message - Message to display
+     * @param {number} duration - Duration in milliseconds to show the message
+     */
+    showInGameMessage(message, duration = 3000) {
+        // Create message element if it doesn't exist
+        let messageElement = document.getElementById('in-game-message');
+        if (!messageElement) {
+            messageElement = document.createElement('div');
+            messageElement.id = 'in-game-message';
+            messageElement.style.position = 'absolute';
+            messageElement.style.top = '30%';
+            messageElement.style.left = '50%';
+            messageElement.style.transform = 'translate(-50%, -50%)';
+            messageElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            messageElement.style.color = '#fff';
+            messageElement.style.padding = '15px 20px';
+            messageElement.style.borderRadius = '5px';
+            messageElement.style.zIndex = '1000';
+            messageElement.style.maxWidth = '80%';
+            messageElement.style.textAlign = 'center';
+            messageElement.style.fontSize = '18px';
+            messageElement.style.fontWeight = 'bold';
+            messageElement.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
+            document.getElementById('game-container').appendChild(messageElement);
+        }
+        
+        // Set message text
+        messageElement.textContent = message;
+        messageElement.style.display = 'block';
+        
+        // Clear any existing timeout
+        if (this.messageTimeout) {
+            clearTimeout(this.messageTimeout);
+        }
+        
+        // Hide message after duration
+        this.messageTimeout = setTimeout(() => {
+            messageElement.style.display = 'none';
+        }, duration);
     }
     
     /**
