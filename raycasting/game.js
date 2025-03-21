@@ -1066,9 +1066,9 @@ class DungeonGame {
                         // Check if this is the exit door to progress to next level
                         this.checkLevelCompletion(interactedObject);
                     } else {
-                        // Display message that door is locked
+                        // Display message that door is locked in-game
                         console.log('This door is locked. You need a key.');
-                        alert('This door is locked. You need a key.');
+                        this.showInGameMessage('This door is locked. You need a key.', 3000);
                     }
                 } else {
                     // Toggle door open/closed
